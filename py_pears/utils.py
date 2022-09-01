@@ -20,8 +20,9 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '.'))
 # org: string for the organization's bucket subdirectory (eg. 'uie')
 # date: string in %Y/%m/%d format for the export date (default is today's date)
 # dst: string for destination directory to download PEARS exports to
+# modules: list of strings for the PEARS modules to download
 def download_s3_exports(profile, org, date=pd.to_datetime("today").strftime("%Y/%m/%d"),
-                        dst=ROOT_DIR + "/pears_exports"):
+                        dst=ROOT_DIR + "/pears_exports", modules=None):
     # Use PEARS AWS S3 credentials
     session = boto3.Session(profile_name=profile)
 
@@ -34,10 +35,19 @@ def download_s3_exports(profile, org, date=pd.to_datetime("today").strftime("%Y/
         Prefix=org + '/' + date + '/',
         MaxKeys=100)
 
+    # Create a list of filenames to download from the S3
+    # Might need additional string operations (capitalization, spaces to underscores)
+    # Throw exception for invalid modules
+    # What happens if modules is None?
+    # Add _Export.xlsx for all exc
+    module_filenames = [s + '_Export.xlsx' for s in modules]
+
     # Download the Excel files to the destination directory
     for f in response['Contents']:
         file = f['Key']
         filename = file[file.rfind('/') + 1:]
+        if modules is not None and filename not in module_filenames:
+            continue
         conn.download_file(my_bucket, file, dst + '/' + filename)
 
 
@@ -136,4 +146,3 @@ def send_mail(send_from,
     except smtplib.SMTPAuthenticationError:
         print("Authentication failed. Make sure to provide a valid username and password.")
     smtp.quit()
-

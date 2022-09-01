@@ -215,3 +215,5 @@ fabric.properties
 
 # pyenv
 .python-version
+
+# specific to py-pears
