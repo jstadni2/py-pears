@@ -29,7 +29,9 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
+boto3 = "^1.20.38"
+pandas = "^1.2.3"
 
 # Docs, optional, use `poetry install -E docs` to install them:
 sphinx = { version = "^5.1",  optional = true }
