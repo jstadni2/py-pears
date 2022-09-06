@@ -1,8 +1,6 @@
 import os
 import pandas as pd
 import py_pears.utils as utils
-
-# remove after creating wrapper for failure email
 import smtplib
 
 # Calculate the path to the root directory of this package
@@ -10,8 +8,12 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
 
 EXPORT_DIR = ROOT_DIR + '/pears_exports/'
 
+creds = utils.load_credentials()
+
 # Download required PEARS exports from S3
-utils.download_s3_exports(profile='pears', org='uie', modules=['Site', 'User'])
+utils.download_s3_exports(profile=creds['aws_profile'],
+                          org=creds['s3_organization'],
+                          modules=['Site', 'User'])
 
 # Import input data
 sites = pd.read_excel(EXPORT_DIR + "Site_Export.xlsx", sheet_name='Site Data')
@@ -57,10 +59,7 @@ utils.write_report(sites_report_path, ['PEARS Sites Report'], [sites])
 
 # Email Sites Report
 
-# IMPORT the following variables from the credentials file
 report_cc = 'list@domain.com, of_recipients@domain.com'
-creds = utils.load_credentials()
-
 report_recipients = 'recipient@domain.com'
 report_subject = 'PEARS Sites Report ' + prev_month.strftime('%Y-%m')
 
@@ -155,24 +154,12 @@ for x in staff_list:
     except smtplib.SMTPException:
         failed_recipients.append(x)
 
-# Build the following pattern into a function?
 
 # Notify admin of any failed attempts to send an email
-# Else, print success notification to console
-if failed_recipients:
-    fail_html = """The following recipients failed to receive an email:<br>
-    {}
-    """
-    new_string = '<br>'.join(map(str, failed_recipients))
-    new_html = fail_html.format(new_string)
-    fail_subject = 'PEARS Sites Report  ' + prev_month.strftime('%b-%Y') + ' Failure Notice'
-    utils.send_mail(send_from=creds['admin_send_from'],
-                    send_to='your_username@domain.com',
-                    cc='',
-                    subject=fail_subject,
-                    html=fail_html,
-                    username=creds['admin_username'],
-                    password=creds['admin_password'],
-                    is_tls=True)
-else:
-    print("Unauthorized site creation notifications sent successfully.")
+utils.send_failure_notice(failed_recipients=failed_recipients,
+                          send_from=creds['admin_send_from'],
+                          send_to=creds['admin_send_from'],
+                          username=creds['admin_username'],
+                          password=creds['admin_password'],
+                          fail_subject='PEARS Sites Report  ' + prev_month.strftime('%b-%Y') + ' Failure Notice',
+                          success_msg='Unauthorized site creation notifications sent successfully.')
