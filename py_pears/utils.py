@@ -155,3 +155,36 @@ def send_mail(send_from,
     except smtplib.SMTPAuthenticationError:
         print("Authentication failed. Make sure to provide a valid username and password.")
     smtp.quit()
+
+
+# Notify admin of any failed attempts to send an email
+# failed_recipients: string list of recipients who failed to receive an email
+# send_from: string for the sender's email address
+# send_to: string for the recipient's email address
+# username: string for the username to authenticate with
+# password: string for the password to authenticate with
+# fail_subject: string for the failure email subject line (default: 'Failure Notice')
+# success_msg: String to print to console if all emails are sent successfully (default: 'Report sent successfully')
+def send_failure_notice(failed_recipients,
+                        send_from,
+                        send_to,
+                        username,
+                        password,
+                        fail_subject='Failure Notice',
+                        success_msg='Report sent successfully'):
+    if failed_recipients:
+        fail_html = """The following recipients failed to receive an email:<br>
+        {}
+        """
+        new_string = '<br>'.join(map(str, failed_recipients))
+        new_html = fail_html.format(new_string)
+        send_mail(send_from=send_from,
+                  send_to=send_to,
+                  cc='',
+                  subject=fail_subject,
+                  html=fail_html,
+                  username=username,
+                  password=password,
+                  is_tls=True)
+    else:
+        print(success_msg)
