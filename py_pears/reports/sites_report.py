@@ -59,8 +59,10 @@ utils.write_report(sites_report_path, ['PEARS Sites Report'], [sites])
 
 # Email Sites Report
 
+# Set the appropriate recipients
 report_cc = 'list@domain.com, of_recipients@domain.com'
 report_recipients = 'recipient@domain.com'
+
 report_subject = 'PEARS Sites Report ' + prev_month.strftime('%Y-%m')
 
 report_html = """<html>
