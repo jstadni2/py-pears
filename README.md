@@ -19,7 +19,17 @@ This is how python package should look like!
 ```bash
 pip install py-pears
 ```
+### Setyp
 
+Example `credentials.json`:
+
+```json
+{
+  "admin_username": "your_username@domain.com",
+  "admin_password": "your_password",
+  "admin_send_from": "your_username@domain.com"
+}
+```
 
 ## Example
 

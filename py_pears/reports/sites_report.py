@@ -58,10 +58,8 @@ utils.write_report(sites_report_path, ['PEARS Sites Report'], [sites])
 # Email Sites Report
 
 # IMPORT the following variables from the credentials file
-admin_username = 'your_username@domain.com'
-admin_password = 'your_password'
-admin_send_from = 'your_username@domain.com'
 report_cc = 'list@domain.com, of_recipients@domain.com'
+creds = utils.load_credentials()
 
 report_recipients = 'recipient@domain.com'
 report_subject = 'PEARS Sites Report ' + prev_month.strftime('%Y-%m')
@@ -83,13 +81,13 @@ report_html = """<html>
 </html>
 """
 
-utils.send_mail(send_from=admin_send_from,
+utils.send_mail(send_from=creds['admin_send_from'],
                 send_to=report_recipients,
                 cc=report_cc,
                 subject=report_subject,
                 html=report_html,
-                username=admin_username,
-                password=admin_password,
+                username=creds['admin_username'],
+                password=creds['admin_password'],
                 is_tls=True,
                 wb=True,
                 file_path=sites_report_path,
@@ -146,13 +144,13 @@ for x in staff_list:
     user_html = notification_html.format(staff_name)
     # Try to send the email, otherwise add the recipient's email address to failed_recipients
     try:
-        utils.send_mail(send_from=admin_send_from,
+        utils.send_mail(send_from=creds['admin_send_from'],
                         send_to=notification_send_to,
                         cc=notification_cc,
                         subject=notification_subject,
                         html=user_html,
-                        username=admin_username,
-                        password=admin_password,
+                        username=creds['admin_username'],
+                        password=creds['admin_password'],
                         is_tls=True)
     except smtplib.SMTPException:
         failed_recipients.append(x)
@@ -168,13 +166,13 @@ if failed_recipients:
     new_string = '<br>'.join(map(str, failed_recipients))
     new_html = fail_html.format(new_string)
     fail_subject = 'PEARS Sites Report  ' + prev_month.strftime('%b-%Y') + ' Failure Notice'
-    utils.send_mail(send_from=admin_send_from,
+    utils.send_mail(send_from=creds['admin_send_from'],
                     send_to='your_username@domain.com',
                     cc='',
                     subject=fail_subject,
                     html=fail_html,
-                    username=admin_username,
-                    password=admin_password,
+                    username=creds['admin_username'],
+                    password=creds['admin_password'],
                     is_tls=True)
 else:
     print("Unauthorized site creation notifications sent successfully.")

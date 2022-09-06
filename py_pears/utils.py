@@ -1,7 +1,7 @@
 import os
 import boto3
 import pandas as pd
-
+import json
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -95,6 +95,15 @@ def write_report(file, sheet_names, dfs):
             worksheet.set_column(idx, idx, max_len)
             worksheet.autofilter(0, 0, 0, len(df.columns) - 1)
     writer.close()
+
+
+# load credentials.json file as a dict
+# credentials.json must be created in /py_pears
+def load_credentials():
+    creds_f = open(ROOT_DIR + '/credentials.json')
+    creds_data = json.load(creds_f)
+    creds_f.close()
+    return creds_data
 
 
 # Send an email with or without a xlsx attachment
