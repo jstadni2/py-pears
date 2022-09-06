@@ -149,7 +149,7 @@ def created_collab_dfs(df_created, df_collab, module_id, date_lb=prev_month_lb, 
     df_collab['modified'] = pd.to_datetime(df_collab['modified']).dt.date
     prev_mo_collab_mod = df_collab.loc[(df_collab['modified'] >= date_lb)
                                        & (df_collab['modified'] <= date_ub)].groupby('email')[
-        module_id].count().reset_index(name='prev_mo_collab_Mod')
+        module_id].count().reset_index(name='prev_mo_collab_mod')
 
     ytd_collab = df_collab.groupby('email')[module_id].count().reset_index(name='ytd_collab')
 
@@ -180,12 +180,12 @@ def module_staff_entries(dfs, staff, module, date=prev_month.strftime('%b-%Y')):
     df_merged = reduce(lambda left, right: pd.merge(left, right, how='left', on='email'), dfs)
     df_merged = df_merged.fillna(0)
 
-    df_merged = df_merged.rename(columns={'Prev_MO_Created': module + ' Created ' + date,
-                                          'Prev_MO_Modified': module + ' Modified ' + date,
-                                          'YTD_Created': module + ' Created YTD',
-                                          'Prev_MO_Collab': module + ' Collaborated Created ' + date,
-                                          'Prev_MO_Collab_Mod': module + ' Collaborated Modified ' + date,
-                                          'YTD_Collab': module + ' Collaborated Created YTD'})
+    df_merged = df_merged.rename(columns={'prev_mo_created': module + ' Created ' + date,
+                                          'prev_mo_modified': module + ' Modified ' + date,
+                                          'ytd_created': module + ' Created YTD',
+                                          'prev_mo_collab': module + ' Collaborated Created ' + date,
+                                          'prev_mo_collab_mod': module + ' Collaborated Modified ' + date,
+                                          'ytd_collab': module + ' Collaborated Created YTD'})
     return df_merged
 
 
