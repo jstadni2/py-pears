@@ -1,6 +1,7 @@
 import os
 import boto3
 import pandas as pd
+import numpy as np
 import json
 import smtplib
 import ssl
@@ -49,6 +50,57 @@ def download_s3_exports(profile, org, date=pd.to_datetime("today").strftime("%Y/
         if modules is not None and filename not in module_filenames:
             continue
         conn.download_file(my_bucket, file, dst + '/' + filename)
+
+
+# Function to convert custom field's label to its dropdown value
+# text: string value of the label suffix
+# custom_field_label: string for the custom field label's prefix
+def replace_all(text, custom_field_label):
+    dic = {
+        custom_field_label: '',
+        # Map label suffixes to response options
+        'family_life': 'Family Life',
+        'nutrition_wellness': 'Nutrition & Wellness',
+        'consumer_economics': 'Consumer Economics',
+        'snap_ed': 'SNAP-Ed',
+        'efnep': 'EFNEP',
+        'improve_diet_quality': 'Improve diet quality',
+        'increase_physical_activity_opportunities': 'Increase physical activity opportunities',
+        'increase_food_access': 'Increase food access',
+        'none': 'None',
+        'abcs_of_school_nutrition': 'ABCs of School Nutrition',
+        'growing_together_illinois': 'Growing Together Illinois',
+        'heat': 'HEAT',
+        'cphp_shape_up_chicago_youth_trainers': 'CPHP - Shape Up Chicago Youth Trainers',
+        'cphp_chicago_grows_groceries': 'CPHP - Chicago Grows Groceries',
+        '_': '',
+    }
+    for i, j in dic.items():
+        text = text.replace(i, j)
+    return text
+
+
+# Convert custom field value binary columns into a single custom field column of list-like strings
+# df: dataframe of records to reformat
+# labels: list of custom labels to iterate through
+def reformat(df, labels):
+    reformatted_df = df.copy()
+    for label in labels:
+        binary_cols = reformatted_df.columns[reformatted_df.columns.str.contains(label)]
+        if binary_cols.empty:
+            continue
+        for col in binary_cols:
+            reformatted_df.loc[reformatted_df[col] == 1, col] = replace_all(col, label)
+            reformatted_df.loc[reformatted_df[col] == 0, col] = ''
+        # Create custom field column of list-like strings
+        reformatted_df[label] = reformatted_df[binary_cols].apply(lambda row:
+                                                                  ','.join(row.values.astype(str)),
+                                                                  axis=1).str.strip(',').str.replace(r',+',
+                                                                                                     ',', regex=True)
+        reformatted_df.loc[reformatted_df[label] == '', label] = np.nan
+        # Remove custom field value binary columns
+        reformatted_df.drop(columns=binary_cols, inplace=True)
+        return reformatted_df
 
 
 # function for reordering comma-separated name
@@ -177,7 +229,7 @@ def send_failure_notice(failed_recipients,
         {}
         """
         new_string = '<br>'.join(map(str, failed_recipients))
-        new_html = fail_html.format(new_string)
+        fail_html = fail_html.format(new_string)
         send_mail(send_from=send_from,
                   send_to=send_to,
                   cc='',

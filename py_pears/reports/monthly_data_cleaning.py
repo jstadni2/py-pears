@@ -78,6 +78,7 @@ def insert_dfs(dfs, strs):
 # update_notifications: path to a workbook that compiles the update notifications
 # send_emails: boolean for sending emails associated with this report (default: False)
 # notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
+# former_staff_recipients: list-like string of email addresses for recipients of the former staff corrections email
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
 def main(creds,
@@ -89,6 +90,7 @@ def main(creds,
          update_notifications,
          send_emails=False,
          notification_cc='',
+         former_staff_recipients='',
          report_cc='',
          report_recipients=''):
 
@@ -1060,7 +1062,7 @@ def main(creds,
         try:
             if any(x.empty is False for x in former_staff_dfs.values()):
                 utils.send_mail(send_from=creds['admin_send_from'],
-                                send_to=send_to2,  # rename numbered variables
+                                send_to=former_staff_recipients,  # rename numbered variables
                                 cc=notification_cc,
                                 subject=subject2,
                                 html=new_html2,
@@ -1072,7 +1074,9 @@ def main(creds,
                                 filename=filename2)
         except smtplib.SMTPException:
             failed_recipients.append(
-                ['RECIPIENT NAME', send_to2, 'Illinois - University of Illinois Extension (Implementing Agency)'])
+                ['RECIPIENT NAME',
+                 former_staff_recipients,
+                 'Illinois - University of Illinois Extension (Implementing Agency)'])
 
         # Email the Corrections Report
 
