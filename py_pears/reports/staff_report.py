@@ -113,7 +113,7 @@ prev_month_lb = (ts.replace(day=1) - pd.DateOffset(months=1)).date()
 prev_month_ub = ts.replace(day=10)
 
 
-# CREATE a util function for subsetting data by date bounds (inclusive/exclusive?)
+# CREATE an util function for subsetting data by date bounds (inclusive/exclusive?)
 
 # Function to create list of dataframes consisting of
 # counts of record creation data created during the previous month,
@@ -225,7 +225,7 @@ def compile_report(dfs, agency='Extension'):
                                               'Collaborated ')].sum(axis=1)
     report['Total Entries Collaborated Created ' + prev_month.strftime('%b-%Y')] = report.loc[:,
                                                                                    report.columns.str.contains(
-                                                                                       'Collaborated Created ' + prev_month.strftime(
+                                                                                       'Collaborated Created ' + prev_month.strftime( # pass in date string
                                                                                            '%b-%Y'))].sum(axis=1)
     report['Total Entries Collaborated Modified ' + prev_month.strftime('%b-%Y')] = report.loc[:,
                                                                                     report.columns.str.contains(
@@ -255,7 +255,7 @@ def compile_report(dfs, agency='Extension'):
 extension_report = compile_report(extension_staff_modules)
 
 
-# Function to export the staff report as an xlsx formatted to each agency's specifications
+# Function to export the staff report as a xlsx formatted to each agency's specifications
 # dfs: dict of sheet name and dataframe returned from compile_report()
 # file_path: string for the output directory and filename
 # agency: string, either 'Extension' or 'CPHP'
