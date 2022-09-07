@@ -1,106 +1,7 @@
-import os
 import pandas as pd
 from functools import reduce
 import py_pears.utils as utils
 
-# Calculate the path to the root directory of this package
-ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
-
-EXPORT_DIR = ROOT_DIR + '/pears_exports/'
-
-TEST_INPUTS_DIR = os.path.realpath(os.path.join(ROOT_DIR, '..')) + '/tests/test_inputs/'
-
-creds = utils.load_credentials()
-
-# Download required PEARS exports from S3
-utils.download_s3_exports(profile=creds['aws_profile'],
-                          org=creds['s3_organization'],
-                          modules=['User',
-                                   'Program_Activities',
-                                   'Indirect_Activity',
-                                   'Coalition',
-                                   'Partnership',
-                                   'PSE_Site_Activity',
-                                   'Success_Story'])
-
-# Import SNAP-Ed staff
-
-# TEMPORARILY importing Staff List in /tests/test_inputs
-FY22_INEP_Staff = pd.ExcelFile(TEST_INPUTS_DIR + "FY22_INEP_Staff_List.xlsx")
-# Adjust header argument below for actual staff list
-SNAP_Ed_Staff = pd.read_excel(FY22_INEP_Staff, sheet_name='SNAP-Ed Staff List', header=0)
-SNAP_Ed_Staff['NAME'] = SNAP_Ed_Staff['NAME'].str.strip()
-SNAP_Ed_Staff['E-MAIL'] = SNAP_Ed_Staff['E-MAIL'].str.strip()
-
-# Import CPHP staff
-
-# Adjust header argument below for actual staff list
-CPHP_Staff = pd.read_excel(FY22_INEP_Staff, sheet_name='CPHP Staff List', header=0).rename(
-    columns={'Last Name': 'last_name',
-             'First Name': 'first_name',
-             'Email Address': 'email'})
-CPHP_Staff['full_name'] = CPHP_Staff['first_name'].map(str) + ' ' + CPHP_Staff['last_name'].map(str)
-CPHP_Staff = CPHP_Staff.loc[CPHP_Staff['email'].notnull(), ['full_name', 'email']]
-CPHP_Staff['email'] = CPHP_Staff['email'].str.strip()
-
-# Import PEARS users
-
-PEARS_User_Export = pd.read_excel(EXPORT_DIR + "User_Export.xlsx", sheet_name='User Data')
-PEARS_User_Export = PEARS_User_Export.loc[PEARS_User_Export['is_active'] == 1]
-
-
-# Function for merging PEARS module records with collaborator data
-# df: dataframe of module data
-# module_id: string for the module's id column label
-# excel_file: pandas.ExcelFile of the module export
-def merge_collaborators(df, module_id, excel_file):
-    collaborators = pd.read_excel(excel_file, 'Collaborators')
-    collaborators = pd.merge(collaborators, PEARS_User_Export, how='left', left_on='user', right_on='full_name')
-    collaborators = pd.merge(collaborators, df, how='left', on=module_id)
-    collaborators = collaborators.loc[:, [module_id, 'user', 'email', 'created', 'modified']]
-    return collaborators
-
-
-# Refactor this data and for loop using the Module class?
-# Desired modules to report on
-# 'Excel_File', 'Sheet Name'
-
-import_modules = [['Program_Activities', 'Program Activity Data'],
-                  ['Indirect_Activity', 'Indirect Activity Data'],
-                  ['Coalition', 'Coalition Data'],
-                  ['Partnership', 'Partnership Data'],
-                  ['PSE_Site_Activity', 'PSE Data'],
-                  ['Success_Story', 'Success Story Data']]
-
-# Id column labels for each module in import_modules
-
-module_ids = ['program_id', 'activity_id', 'coalition_id', 'partnership_id', 'pse_id', 'story_id']
-
-# Import record creation and collaboration data for each module
-
-module_dfs = []
-
-for index, item in enumerate(import_modules):
-    wb = pd.ExcelFile(EXPORT_DIR + item[0] + "_Export.xlsx")
-    # Record creation data
-    # Module records aggregated by the user specified in the 'reported_by' field
-    create_df = pd.read_excel(wb, item[1])
-    # Colloboration data
-    # Module records aggregated by the user(s) specified in the 'collaborators' field
-    collab_df = merge_collaborators(create_df, module_ids[index], wb)
-    module_dfs.append([create_df, collab_df])
-
-# Create PEARS SNAP-Ed Staff Report
-
-# Null values in FY22 INEP Staff List.xlsx
-staff_nulls = ('N/A', 'NEW', 'OPEN')
-# Prep dataframe of SNAP-Ed staff
-SNAP_Ed_Staff = SNAP_Ed_Staff.loc[
-    ~SNAP_Ed_Staff['NAME'].isin(staff_nulls) & SNAP_Ed_Staff['NAME'].notnull(),
-    ['UNIT #', 'JOB CLASS', 'NAME', 'E-MAIL']]
-
-SNAP_Ed_Staff = SNAP_Ed_Staff.loc[SNAP_Ed_Staff['E-MAIL'].notnull()]
-SNAP_Ed_Staff = SNAP_Ed_Staff.rename(columns={'E-MAIL': 'email'})
 
 # Timestamp for day the report is run
 ts = pd.to_datetime("today").date()
@@ -111,6 +12,19 @@ prev_month_lb = (ts.replace(day=1) - pd.DateOffset(months=1)).date()
 # End date of the report period
 # Prior month's records are typically entered by the 10th day of subsequent month
 prev_month_ub = ts.replace(day=10)
+
+
+# Function for merging PEARS module records with collaborator data
+# pears_users: dataframe of PEARS users
+# df: dataframe of module data
+# module_id: string for the module's id column label
+# excel_file: pandas.ExcelFile of the module export
+def merge_collaborators(pears_users, df, module_id, excel_file):
+    collaborators = pd.read_excel(excel_file, 'Collaborators')
+    collaborators = pd.merge(collaborators, pears_users, how='left', left_on='user', right_on='full_name')
+    collaborators = pd.merge(collaborators, df, how='left', on=module_id)
+    collaborators = collaborators.loc[:, [module_id, 'user', 'email', 'created', 'modified']]
+    return collaborators
 
 
 # CREATE an util function for subsetting data by date bounds (inclusive/exclusive?)
@@ -157,18 +71,6 @@ def created_collab_dfs(df_created, df_collab, module_id, date_lb=prev_month_lb, 
     return dfs
 
 
-# Desired modules to report on
-
-modules = ['Program Activities', 'Indirect Activities', 'Coalitions', 'Partnerships', 'PSE', 'Success Stories']
-
-# For each module, aggregate record creation/collaboration counts by each timeframe
-
-module_created_collab_dfs = []
-
-for index, item in enumerate(module_dfs):
-    module_created_collab_dfs.append(created_collab_dfs(item[0], item[1], module_ids[index]))
-
-
 # Function to merge record counts and staff list
 # dfs: list of dataframes returned from created_collab_dfs()
 # staff: dataframe of staff
@@ -187,14 +89,6 @@ def module_staff_entries(dfs, staff, module, date=prev_month.strftime('%b-%Y')):
                                           'prev_mo_collab_mod': module + ' Collaborated Modified ' + date,
                                           'ytd_collab': module + ' Collaborated Created YTD'})
     return df_merged
-
-
-# Merge record counts for each module with SNAP-Ed staff
-
-extension_staff_modules = []
-
-for index, item in enumerate(module_created_collab_dfs):
-    extension_staff_modules.append(module_staff_entries(item, SNAP_Ed_Staff, modules[index]))
 
 
 # Function to compile the staff report formatted to each agency's specifications
@@ -251,10 +145,6 @@ def compile_report(dfs, agency='Extension'):
     return report
 
 
-# Compiled staff report for Extension (SNAP-Ed)
-extension_report = compile_report(extension_staff_modules)
-
-
 # Function to export the staff report as a xlsx formatted to each agency's specifications
 # dfs: dict of sheet name and dataframe returned from compile_report()
 # file_path: string for the output directory and filename
@@ -293,66 +183,178 @@ def save_staff_report(dfs, file_path, agency='Extension'):
         writer.close()
 
 
-# Save extension report
+# Run the Staff Report
+# creds: dict of credentials loaded from credentials.json
+# export_dir: directory where PEARS exports are downloaded to
+# output_dir: directory where report outputs are saved
+# staff_list: path to the staff list Excel workbook
+# send_emails: boolean for sending emails associated with this report (default: False)
+# notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
+# report_cc: list-like string of email addresses to cc on the report email
+# report_recipients: list-like string of email addresses for recipients of the report email
+def main(creds,
+         export_dir,
+         output_dir,
+         staff_list,
+         send_emails=False,
+         notification_cc='',
+         report_cc='',
+         report_recipients=''):
 
-extension_report_dfs = {'Extension Staff PEARS Entries': extension_report}
-extension_report_filename = 'Extension Staff PEARS Entries ' + prev_month.strftime('%Y-%m') + '.xlsx'
-out_path = ROOT_DIR + "/reports/outputs/"
-extension_report_file_path = out_path + '/' + extension_report_filename
+    # Download required PEARS exports from S3
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              modules=['User',
+                                       'Program_Activities',
+                                       'Indirect_Activity',
+                                       'Coalition',
+                                       'Partnership',
+                                       'PSE_Site_Activity',
+                                       'Success_Story'])
 
-save_staff_report(extension_report_dfs, extension_report_file_path, agency='Extension')
+    # Import SNAP-Ed staff
 
-# Create PEARS CPHP Staff Report
+    # TEMPORARILY importing Staff List in /tests/test_inputs
+    fy22_inep_staff = pd.ExcelFile(staff_list)
+    # Adjust header argument below for actual staff list
+    snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='SNAP-Ed Staff List', header=0)
+    snap_ed_staff['NAME'] = snap_ed_staff['NAME'].str.strip()
+    snap_ed_staff['E-MAIL'] = snap_ed_staff['E-MAIL'].str.strip()
 
+    # Import CPHP staff
 
-cphp_staff_modules = []
+    # Adjust header argument below for actual staff list
+    cphp_staff = pd.read_excel(fy22_inep_staff, sheet_name='CPHP Staff List', header=0).rename(
+        columns={'Last Name': 'last_name',
+                 'First Name': 'first_name',
+                 'Email Address': 'email'})
+    cphp_staff['full_name'] = cphp_staff['first_name'].map(str) + ' ' + cphp_staff['last_name'].map(str)
+    cphp_staff = cphp_staff.loc[cphp_staff['email'].notnull(), ['full_name', 'email']]
+    cphp_staff['email'] = cphp_staff['email'].str.strip()
 
-for index, item in enumerate(module_created_collab_dfs):
-    cphp_staff_modules.append(module_staff_entries(item, CPHP_Staff, modules[index]))
+    # Import PEARS users
 
-cphp_report = compile_report(cphp_staff_modules, agency='CPHP')
+    pears_users = pd.read_excel(export_dir + "User_Export.xlsx", sheet_name='User Data')
+    pears_users = pears_users.loc[pears_users['is_active'] == 1]
 
-cphp_report_dfs = {'CPHP Staff PEARS Entries': cphp_report}
-cphp_report_filename = 'CPHP Staff PEARS Entries ' + prev_month.strftime('%Y-%m') + '.xlsx'
-cphp_report_file_path = out_path + '/' + cphp_report_filename
+    # Refactor this data and for loop using the Module class?
+    # Desired modules to report on
+    # 'Excel_File', 'Sheet Name'
 
-save_staff_report(cphp_report_dfs, cphp_report_file_path, agency='CPHP')
+    import_modules = [['Program_Activities', 'Program Activity Data'],
+                      ['Indirect_Activity', 'Indirect Activity Data'],
+                      ['Coalition', 'Coalition Data'],
+                      ['Partnership', 'Partnership Data'],
+                      ['PSE_Site_Activity', 'PSE Data'],
+                      ['Success_Story', 'Success Story Data']]
 
-# Email Reports
+    # Id column labels for each module in import_modules
 
-# Set the appropriate recipients
-report_cc = 'list@domain.com, of_recipients@domain.com'
+    module_ids = ['program_id', 'activity_id', 'coalition_id', 'partnership_id', 'pse_id', 'story_id']
 
-# Email the SNAP-Ed staff report
+    # Import record creation and collaboration data for each module
 
-extension_report_subject = 'Extension Staff PEARS Entries ' + prev_month.strftime('%Y-%m')
-extension_report_text = extension_report_subject + ' attached.'
+    module_dfs = []
 
-# utils.send_mail(send_from=creds['admin_send_from'],
-#                 send_to='snap_ed_recipient@domain.com',
-#                 cc=report_cc,
-#                 subject=extension_report_subject,
-#                 html=extension_report_text,
-#                 username=creds['admin_username'],
-#                 password=creds['admin_password'],
-#                 is_tls=True,
-#                 wb=True,
-#                 file_path=extension_report_file_path,
-#                 filename=extension_report_filename)
+    for index, item in enumerate(import_modules):
+        wb = pd.ExcelFile(export_dir + item[0] + "_Export.xlsx")
+        # Record creation data
+        # Module records aggregated by the user specified in the 'reported_by' field
+        create_df = pd.read_excel(wb, item[1])
+        # Colloboration data
+        # Module records aggregated by the user(s) specified in the 'collaborators' field
+        collab_df = merge_collaborators(pears_users, create_df, module_ids[index], wb)
+        module_dfs.append([create_df, collab_df])
 
-# Email the CPHP staff report
+    # Create PEARS SNAP-Ed Staff Report
 
-cphp_report_subject = 'CPHP Staff PEARS Entries ' + prev_month.strftime('%Y-%m')
-cphp_report_text = cphp_report_subject + ' attached.'
+    # Null values in FY22 INEP Staff List.xlsx
+    staff_nulls = ('N/A', 'NEW', 'OPEN')
+    # Prep dataframe of SNAP-Ed staff
+    snap_ed_staff = snap_ed_staff.loc[
+        ~snap_ed_staff['NAME'].isin(staff_nulls) & snap_ed_staff['NAME'].notnull(),
+        ['UNIT #', 'JOB CLASS', 'NAME', 'E-MAIL']]
 
-# utils.send_mail(send_from=creds['admin_send_from'],
-#                 send_to='cphp_recipient@domain.com',
-#                 cc=report_cc,
-#                 subject=cphp_report_subject,
-#                 html=cphp_report_text,
-#                 username=creds['admin_username'],
-#                 password=creds['admin_password'],
-#                 is_tls=True,
-#                 wb=True,
-#                 file_path=cphp_report_file_path,
-#                 filename=cphp_report_filename)
+    snap_ed_staff = snap_ed_staff.loc[snap_ed_staff['E-MAIL'].notnull()]
+    snap_ed_staff = snap_ed_staff.rename(columns={'E-MAIL': 'email'})
+
+    # Desired modules to report on
+
+    modules = ['Program Activities', 'Indirect Activities', 'Coalitions', 'Partnerships', 'PSE', 'Success Stories']
+
+    # For each module, aggregate record creation/collaboration counts by each timeframe
+
+    module_created_collab_dfs = []
+
+    for index, item in enumerate(module_dfs):
+        module_created_collab_dfs.append(created_collab_dfs(item[0], item[1], module_ids[index]))
+
+    # Merge record counts for each module with SNAP-Ed staff
+
+    extension_staff_modules = []
+
+    for index, item in enumerate(module_created_collab_dfs):
+        extension_staff_modules.append(module_staff_entries(item, snap_ed_staff, modules[index]))
+
+    # Compiled staff report for Extension (SNAP-Ed)
+    extension_report = compile_report(extension_staff_modules)
+    # Save extension report
+
+    extension_report_dfs = {'Extension Staff PEARS Entries': extension_report}
+    extension_report_filename = 'Extension Staff PEARS Entries ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    extension_report_file_path = output_dir + '/' + extension_report_filename
+
+    save_staff_report(extension_report_dfs, extension_report_file_path, agency='Extension')
+
+    # Create PEARS CPHP Staff Report
+
+    cphp_staff_modules = []
+
+    for index, item in enumerate(module_created_collab_dfs):
+        cphp_staff_modules.append(module_staff_entries(item, cphp_staff, modules[index]))
+
+    cphp_report = compile_report(cphp_staff_modules, agency='CPHP')
+
+    cphp_report_dfs = {'CPHP Staff PEARS Entries': cphp_report}
+    cphp_report_filename = 'CPHP Staff PEARS Entries ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    cphp_report_file_path = output_dir + '/' + cphp_report_filename
+
+    save_staff_report(cphp_report_dfs, cphp_report_file_path, agency='CPHP')
+
+    # Email Reports
+
+    if send_emails:
+
+        # Email the SNAP-Ed staff report
+
+        extension_report_subject = 'Extension Staff PEARS Entries ' + prev_month.strftime('%Y-%m')
+        extension_report_text = extension_report_subject + ' attached.'
+
+        utils.send_mail(send_from=creds['admin_send_from'],
+                        send_to='snap_ed_recipient@domain.com',
+                        cc=report_cc,
+                        subject=extension_report_subject,
+                        html=extension_report_text,
+                        username=creds['admin_username'],
+                        password=creds['admin_password'],
+                        is_tls=True,
+                        wb=True,
+                        file_path=extension_report_file_path,
+                        filename=extension_report_filename)
+
+        # Email the CPHP staff report
+
+        cphp_report_subject = 'CPHP Staff PEARS Entries ' + prev_month.strftime('%Y-%m')
+        cphp_report_text = cphp_report_subject + ' attached.'
+
+        utils.send_mail(send_from=creds['admin_send_from'],
+                        send_to='cphp_recipient@domain.com',
+                        cc=report_cc,
+                        subject=cphp_report_subject,
+                        html=cphp_report_text,
+                        username=creds['admin_username'],
+                        password=creds['admin_password'],
+                        is_tls=True,
+                        wb=True,
+                        file_path=cphp_report_file_path,
+                        filename=cphp_report_filename)
