@@ -1,28 +1,19 @@
-import os
 import pandas as pd
 import py_pears.utils as utils
 import smtplib
 
 
-# Calculate the path to the root directory of this package
-ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
-
-# Set default directories
-EXPORT_DIR = ROOT_DIR + '/pears_exports/'
-OUT_DIR = ROOT_DIR + "/reports/outputs/"
-
-creds = utils.load_credentials()
-
-
 # Run the Sites Report
+# creds: dict of credentials loaded from credentials.json
 # export_dir: directory where PEARS exports are downloaded to
 # output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
 # notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
-def main(export_dir=EXPORT_DIR,
-         output_dir=OUT_DIR,
+def main(creds,
+         export_dir,
+         output_dir,
          send_emails=False,
          notification_cc='',
          report_cc='',
@@ -182,7 +173,7 @@ def main(export_dir=EXPORT_DIR,
                                   success_msg='Unauthorized site creation notifications sent successfully.')
 
 
-# Run Sites Report from command line using default inputs
-# Parse inputs with argparse for ad hoc functionality
-if __name__ == '__main__':
-    main()
+# Run Sites Report from command line as ad hoc report
+# Parse inputs with argparse
+# if __name__ == '__main__':
+#     main()
