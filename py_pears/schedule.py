@@ -2,6 +2,7 @@ import os
 import py_pears.utils as utils
 import py_pears.reports.sites_report as sites_report
 import py_pears.reports.staff_report as staff_report
+import py_pears.reports.monthly_data_cleaning as monthly_data_cleaning
 
 
 # Calculate the path to the root directory of this package
@@ -14,11 +15,23 @@ TEST_INPUTS_DIR = os.path.realpath(os.path.join(ROOT_DIR, '..')) + '/tests/test_
 
 # Set paths to external data inputs
 staff_list = TEST_INPUTS_DIR + 'FY22_INEP_Staff_List.xlsx'
+names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
+unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
+update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
 
 creds = utils.load_credentials()
 
 # Run Sites Report with default inputs
-sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
+#sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
 
-# Run Sites Report with default inputs
-staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
+# Run Staff Report with default inputs
+#staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
+
+# Run Monthly Data Cleaning with default inputs
+monthly_data_cleaning.main(creds=creds,
+                           export_dir=EXPORT_DIR,
+                           output_dir=OUT_DIR,
+                           staff_list=staff_list,
+                           names_list=names_list,
+                           unit_counties=unit_counties,
+                           update_notifications=update_notifications)

@@ -85,6 +85,8 @@ def replace_all(text, custom_field_label):
 # labels: list of custom labels to iterate through
 def reformat(df, labels):
     reformatted_df = df.copy()
+    # Remove custom data tag from column labels
+    reformatted_df.columns = reformatted_df.columns.str.replace(r'_custom_data', '')
     for label in labels:
         binary_cols = reformatted_df.columns[reformatted_df.columns.str.contains(label)]
         if binary_cols.empty:
@@ -100,7 +102,7 @@ def reformat(df, labels):
         reformatted_df.loc[reformatted_df[label] == '', label] = np.nan
         # Remove custom field value binary columns
         reformatted_df.drop(columns=binary_cols, inplace=True)
-        return reformatted_df
+    return reformatted_df
 
 
 # function for reordering comma-separated name

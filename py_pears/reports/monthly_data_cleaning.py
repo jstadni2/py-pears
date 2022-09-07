@@ -134,9 +134,15 @@ def main(creds,
     unit_counties = pd.read_excel(unit_counties)
     unit_counties['Unit #'] = unit_counties['Unit #'].astype(str)
 
+    # Custom fields that require reformatting
+    # Only needed for multi-select dropdowns
+    custom_field_labels = ['fcs_program_team', 'snap_ed_grant_goals', 'fcs_grant_goals', 'fcs_special_projects',
+                           'snap_ed_special_projects']
+
     # Import Coalitions data and Coalition Members
     Coalitions_Export = pd.ExcelFile(export_dir + '/' + "Coalition_Export.xlsx")
     Coa_Data = pd.read_excel(Coalitions_Export, 'Coalition Data')
+    Coa_Data = utils.reformat(Coa_Data, custom_field_labels)
     # Only data clean records for SNAP-Ed
     # SNAP-Ed staff occasionally select the wrong program_area for Coalitions
     Coa_Data = Coa_Data.loc[(Coa_Data['program_area'] == 'SNAP-Ed') |
@@ -156,6 +162,7 @@ def main(creds,
     # Import Indirect Activity data and Intervention Channels
     Indirect_Activities_Export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
     IA_Data = pd.read_excel(Indirect_Activities_Export, 'Indirect Activity Data')
+    IA_Data = utils.reformat(IA_Data, custom_field_labels)
     # Only data clean records for SNAP-Ed
     IA_Data = IA_Data.loc[IA_Data['program_area'] == 'SNAP-Ed']
     IA_IC = pd.read_excel(Indirect_Activities_Export, 'Intervention Channels')
@@ -163,6 +170,7 @@ def main(creds,
     # Import Partnerships data
     Partnerships_Export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
     Part_Data = pd.read_excel(Partnerships_Export, 'Partnership Data')
+    Part_Data = utils.reformat(Part_Data, custom_field_labels)
     # Only data clean records for SNAP-Ed
     # SNAP-Ed staff occasionally select the wrong program_area for Partnerships
     Part_Data = Part_Data.loc[(Part_Data['program_area'] == 'SNAP-Ed') |
@@ -173,6 +181,7 @@ def main(creds,
     # Import Program Activity data and Sessions
     Program_Activities_Export = pd.ExcelFile(export_dir + "Program_Activities_Export.xlsx")
     PA_Data = pd.read_excel(Program_Activities_Export, 'Program Activity Data')
+    PA_Data = utils.reformat(PA_Data, custom_field_labels)
     # Subset Program Activities for Family Consumer Science
     PA_Data_FCS = PA_Data.loc[PA_Data['program_areas'].str.contains('Family Consumer Science')]
     # Subset Program Activities for SNAP-Ed
@@ -182,6 +191,7 @@ def main(creds,
     # Import PSE Site Activity data, Needs, Readiness, Effectiveness, and Changes
     PSE_Site_Activities_Export = pd.ExcelFile(export_dir + "PSE_Site_Activity_Export.xlsx")
     PSE_Data = pd.read_excel(PSE_Site_Activities_Export, 'PSE Data')
+    PSE_Data = utils.reformat(PSE_Data, custom_field_labels)
     PSE_NRE = pd.read_excel(PSE_Site_Activities_Export, 'Needs, Readiness, Effectiveness')
     PSE_Changes = pd.read_excel(PSE_Site_Activities_Export, 'Changes')
 
@@ -847,6 +857,7 @@ def main(creds,
            'Program Activities': PA_Corrections,
            'PSE': PSE_Corrections}
 
+    # Create function for write_corrections_report
     writer = pd.ExcelWriter(file_path1, engine='xlsxwriter')
     for sheetname, df in dfs.items():  # loop through `dict` of dataframes
         df.to_excel(writer, sheet_name=sheetname, index=False, freeze_panes=(1, 0))  # send df to writer
@@ -1002,19 +1013,8 @@ def main(creds,
         filename2 = 'Former Staff PEARS Updates ' + prev_month.strftime('%Y-%m') + '.xlsx'
         file_path2 = output_dir + '/' + filename2
 
-        writer = pd.ExcelWriter(file_path2, engine='xlsxwriter')
-        for sheetname, df in former_staff_dfs.items():  # loop through `dict` of dataframes
-            df.to_excel(writer, sheet_name=sheetname, index=False, freeze_panes=(1, 0))  # send df to writer
-            worksheet = writer.sheets[sheetname]  # pull worksheet object
-            worksheet.autofilter(0, 0, 0, len(df.columns) - 1)
-            for idx, col in enumerate(df):  # loop through all columns
-                series = df[col]
-                max_len = max((
-                    series.astype(str).map(len).max(),  # len of largest item
-                    len(str(series.name))  # len of column name/header
-                )) + 1  # adding a little extra space
-                worksheet.set_column(idx, idx, max_len)
-        writer.close()
+        # UPDATE utils.write_report() TO ACCEPT DICT
+        utils.write_report(file_path2, former_staff_dfs.keys, former_staff_dfs.values)
 
         # Send former staff updates email
 
@@ -1124,3 +1124,8 @@ def main(creds,
                                   fail_subject=report_subject + ' Failure Notice',
                                   success_msg='Data cleaning notifications sent successfully.')
 
+# REFACTOR REPORT TO ENABLE AD HOC USAGE
+# Run Monthly Data Cleaning from command line as ad hoc report
+# Parse inputs with argparse
+# if __name__ == '__main__':
+#     main()
