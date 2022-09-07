@@ -358,3 +358,9 @@ def main(creds,
                         wb=True,
                         file_path=cphp_report_file_path,
                         filename=cphp_report_filename)
+
+# REFACTOR REPORT TO ENABLE AD HOC USAGE
+# Run Sites Report from command line as ad hoc report
+# Parse inputs with argparse
+# if __name__ == '__main__':
+#     main()
