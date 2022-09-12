@@ -48,6 +48,16 @@ def counties_to_units(data, unit_field='unit', unit_counties=pd.DataFrame()):
     return out_data
 
 
+# Get the update notification
+# update_notes: dataframe of update notification
+# module: string for the PEARS module
+# update: string for the label of the update column
+# notification: string for the desired notification column from update_notes (default: 'Notification1')
+def get_update_note(update_notes, module, update, notification='Notification1'):
+    return update_notes.loc[update_notes['Module'] == module &
+                            update_notes['Update'] == update, notification].item()
+
+
 # Function to calculate total records for each module and update.
 # df: dataframe of module corrections
 # module: string value of module name
@@ -220,14 +230,10 @@ def main(creds,
     report_year_start = '10/01/2021'
     report_year_end = '09/30/2022'
 
-    # Coaltions
+    # Coalitions
 
     # Convert counties to units for use in update notification email
-    coa_data['coalition_unit'] = coa_data['coalition_unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']),
-                                                                        '', regex=True)
-    coa_data = pd.merge(coa_data, unit_counties, how='left', left_on='coalition_unit', right_on='County')
-    coa_data.loc[(~coa_data['coalition_unit'].isin(unit_counties['Unit #'])) &
-                 (coa_data['coalition_unit'].isin(unit_counties['County'])), 'coalition_unit'] = coa_data['Unit #']
+    coa_data = counties_to_units(data=coa_data, unit_field='coalition_unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     coa_data = coa_data.loc[~coa_data['coalition_name'].str.contains('(?i)TEST', regex=True),
@@ -247,62 +253,64 @@ def main(creds,
     coa_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
     coa_data['GI UPDATE1'] = np.nan
-    coa_data.loc[coa_data[
-                     'action_plan_name'].isnull(), 'GI UPDATE1'] = 'Please select \'Health: Chronic Disease Prevention & Management\' for Action Plan Name.'
+    coa_data.loc[coa_data['action_plan_name'].isnull(),
+                 'GI UPDATE1'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
 
     coa_data['GI UPDATE2'] = np.nan
-    coa_data.loc[coa_data['program_area'] != 'SNAP-Ed', 'GI UPDATE2'] = 'Please select \'SNAP-Ed\' for Program Area.'
+    coa_data.loc[coa_data['program_area'] != 'SNAP-Ed',
+                 'GI UPDATE2'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE2')
 
     # Concatenate General Information tab updates
+    # CREATE FUNCTION
     coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GI UPDATE1'].fillna('') + '\n' + coa_data['GI UPDATE2'].fillna(
         '')
     coa_data.loc[coa_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
     coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
 
     coa_data['CUSTOM DATA TAB UPDATES'] = np.nan
-    coa_data.loc[coa_data[
-                     'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
+    coa_data.loc[coa_data['snap_ed_grant_goals'].isnull(),
+                 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
 
     coa_data['COALITION MEMBERS TAB UPDATES'] = np.nan
 
     # Count Coalition Members of each Coalition, flag Coalitions that have none
     coa_data['CM UPDATE1'] = np.nan
-    coa_members_Count = coa_members.groupby('coalition_id')['member_id'].count().reset_index(name='# of Members')
-    coa_data = pd.merge(coa_data, coa_members_Count, how='left', on='coalition_id')
+    coa_members_count = coa_members.groupby('coalition_id')['member_id'].count().reset_index(name='# of Members')
+    coa_data = pd.merge(coa_data, coa_members_count, how='left', on='coalition_id')
     coa_data.loc[(coa_data['# of Members'].isnull()) | (
             coa_data['# of Members'] == 0), 'CM UPDATE1'] = 'Please add organizational members to this coalition.'
 
     # Subsequent updates require Members data
-    coa_members_Data = pd.merge(coa_data, coa_members, how='left', on='coalition_id').rename(
+    coa_members_data = pd.merge(coa_data, coa_members, how='left', on='coalition_id').rename(
         columns={'name': 'member_name'})
 
-    coa_members_Data['CM UPDATE2'] = np.nan
-    coa_members_Data.loc[
-        (coa_members_Data['type'] != 'Community members/individuals') & (coa_members_Data['site_id'].isnull()),
+    coa_members_data['CM UPDATE2'] = np.nan
+    coa_members_data.loc[
+        (coa_members_data['type'] != 'Community members/individuals') & (coa_members_data['site_id'].isnull()),
         'CM UPDATE2'] = 'Please add the Site to the Coalition Member(s) of this coalition.'
 
     # Flag Coalition Members that contain individuals' names
-    coa_members_Data['CM UPDATE3'] = np.nan
+    coa_members_data['CM UPDATE3'] = np.nan
     # Terms indicating false positives
     exclude_terms = ['University', 'Hospital', 'YMCA', 'Center', 'County', 'Elementary', 'Foundation', 'Church', 'Club',
                      'Daycare', 'Housing', 'SNAP-Ed']
-    coa_members_Data.loc[(coa_members_Data['member_name'].str.contains('|'.join(il_names), na=False)) &
-                         (coa_members_Data['member_name'].str.count(' ') == 1) &
-                         (~coa_members_Data['member_name'].str.contains('|'.join(exclude_terms), na=False)),
+    coa_members_data.loc[(coa_members_data['member_name'].str.contains('|'.join(il_names), na=False)) &
+                         (coa_members_data['member_name'].str.count(' ') == 1) &
+                         (~coa_members_data['member_name'].str.contains('|'.join(exclude_terms), na=False)),
                          'CM UPDATE3'] = 'The Coalition Member Name cannot contain names of individuals. Please enter either the organization name or \'Community member\'.'
 
     # Concatenate Coalition Members tab updates
-    coa_members_Data['COALITION MEMBERS TAB UPDATES'] = (coa_members_Data['CM UPDATE1'].fillna('') +
-                                                         '\n' + coa_members_Data['CM UPDATE2'].fillna('') +
-                                                         '\n' + coa_members_Data['CM UPDATE3'].fillna(''))
-    coa_members_Data.loc[
-        coa_members_Data['COALITION MEMBERS TAB UPDATES'].str.isspace(), 'COALITION MEMBERS TAB UPDATES'] = np.nan
-    coa_members_Data['COALITION MEMBERS TAB UPDATES'] = coa_members_Data['COALITION MEMBERS TAB UPDATES'].str.strip()
-    coa_members_Data['COALITION MEMBERS TAB UPDATES'] = coa_members_Data['COALITION MEMBERS TAB UPDATES'].str.replace(
+    coa_members_data['COALITION MEMBERS TAB UPDATES'] = (coa_members_data['CM UPDATE1'].fillna('') +
+                                                         '\n' + coa_members_data['CM UPDATE2'].fillna('') +
+                                                         '\n' + coa_members_data['CM UPDATE3'].fillna(''))
+    coa_members_data.loc[
+        coa_members_data['COALITION MEMBERS TAB UPDATES'].str.isspace(), 'COALITION MEMBERS TAB UPDATES'] = np.nan
+    coa_members_data['COALITION MEMBERS TAB UPDATES'] = coa_members_data['COALITION MEMBERS TAB UPDATES'].str.strip()
+    coa_members_data['COALITION MEMBERS TAB UPDATES'] = coa_members_data['COALITION MEMBERS TAB UPDATES'].str.replace(
         r'\n+', '', regex=True)
 
     # Subset records that require updates
-    Coa_Corrections = coa_members_Data.loc[coa_members_Data.filter(like='UPDATE').notnull().any(1)]
+    Coa_Corrections = coa_members_data.loc[coa_members_data.filter(like='UPDATE').notnull().any(1)]
     member_updates = ['CM UPDATE2', 'CM UPDATE3']
     Coa_Corrections = drop_child_dupes(Coa_Corrections, member_updates, 'coalition_id', 'member_id')
     # Coa_Corrections is exported in the Corrections Report
