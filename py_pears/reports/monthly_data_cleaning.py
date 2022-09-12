@@ -54,9 +54,17 @@ def counties_to_units(data, unit_field='unit', unit_counties=pd.DataFrame()):
 # update: string for the label of the update column
 # notification: string for the desired notification column from update_notes (default: 'Notification1')
 def get_update_note(update_notes, module, update, notification='Notification1'):
-    return update_notes.loc[update_notes['Module'] == module &
-                            update_notes['Update'] == update, notification].item()
+    return update_notes.loc[update_notes['Module'] == module & update_notes['Update'] == update, notification].item()
 
+
+# data: dataframe of PEARS module data
+def concat_updates(data, concat_col, update_cols):
+    out_data = data.copy()
+    # Use a lambda/list comprehension?
+    out_data[concat_col] = out_data[update_cols].apply(lambda x: '\n'.join(x.fillna('').values.tolist()), axis=1)
+    # out_data['GENERAL INFORMATION TAB UPDATES'] = out_data['GI UPDATE1'].fillna('') + '\n' + out_data['GI UPDATE2'].fillna(
+    #     '')
+    return out_data
 
 # Function to calculate total records for each module and update.
 # df: dataframe of module corrections
@@ -253,8 +261,9 @@ def main(creds,
     coa_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
     coa_data['GI UPDATE1'] = np.nan
+    note1 = get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
     coa_data.loc[coa_data['action_plan_name'].isnull(),
-                 'GI UPDATE1'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
+                 'GI UPDATE1'] = note1
 
     coa_data['GI UPDATE2'] = np.nan
     coa_data.loc[coa_data['program_area'] != 'SNAP-Ed',
@@ -262,8 +271,9 @@ def main(creds,
 
     # Concatenate General Information tab updates
     # CREATE FUNCTION
-    coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GI UPDATE1'].fillna('') + '\n' + coa_data['GI UPDATE2'].fillna(
-        '')
+    coa_data = concat_updates(coa_data, concat_col='GENERAL INFORMATION TAB UPDATES', update_cols=['GI UPDATE1', 'GI UPDATE2'])
+    # coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GI UPDATE1'].fillna('') + '\n' + coa_data['GI UPDATE2'].fillna(
+    #     '')
     coa_data.loc[coa_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
     coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
 
