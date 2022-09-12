@@ -34,6 +34,20 @@ def drop_child_dupes(df, c_updates, parent_id, child_id):
     return df
 
 
+# Convert county values in the 'unit' field to units
+# data: dataframe of PEARS module data
+# unit_field: string for the label of the unit field (default: 'unit')
+# unit_counties: dataframe of counties mapped to units (default: empty dataframe)
+def counties_to_units(data, unit_field='unit', unit_counties=pd.DataFrame()):
+    out_data = data.copy()
+    out_data[unit_field] = out_data[unit_field].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']),
+                                                            '', regex=True)
+    out_data = pd.merge(out_data, unit_counties, how='left', left_on=unit_field, right_on='County')
+    out_data.loc[(~out_data[unit_field].isin(unit_counties['Unit #'])) &
+                 (out_data[unit_field].isin(unit_counties['County'])), unit_field] = out_data['Unit #']
+    return out_data
+
+
 # Function to calculate total records for each module and update.
 # df: dataframe of module corrections
 # module: string value of module name
@@ -140,63 +154,63 @@ def main(creds,
                            'snap_ed_special_projects']
 
     # Import Coalitions data and Coalition Members
-    Coalitions_Export = pd.ExcelFile(export_dir + '/' + "Coalition_Export.xlsx")
-    Coa_Data = pd.read_excel(Coalitions_Export, 'Coalition Data')
-    Coa_Data = utils.reformat(Coa_Data, custom_field_labels)
+    coalitions_export = pd.ExcelFile(export_dir + '/' + "Coalition_Export.xlsx")
+    coa_data = pd.read_excel(coalitions_export, 'Coalition Data')
+    coa_data = utils.reformat(coa_data, custom_field_labels)
     # Only data clean records for SNAP-Ed
     # SNAP-Ed staff occasionally select the wrong program_area for Coalitions
-    Coa_Data = Coa_Data.loc[(Coa_Data['program_area'] == 'SNAP-Ed') |
-                            (Coa_Data['reported_by_email'].isin(snap_ed_staff['E-MAIL'])) |
-                            (Coa_Data['reported_by_email'].isin(
+    coa_data = coa_data.loc[(coa_data['program_area'] == 'SNAP-Ed') |
+                            (coa_data['reported_by_email'].isin(snap_ed_staff['E-MAIL'])) |
+                            (coa_data['reported_by_email'].isin(
                                 former_snap_ed_staff['email']))]  # Filtering for former staff will include transfers
-    Coa_Members = pd.read_excel(Coalitions_Export, 'Members')
+    coa_members = pd.read_excel(coalitions_export, 'Members')
 
     # Import list of Illinois names, used to flag Coalition Members with individual's names
     # Source: https://www.ssa.gov/oact/babynames/state/
-    IL_names = pd.read_csv(names_list,
+    il_names = pd.read_csv(names_list,
                            delimiter=",",
                            names=['state', 'sex', 'year', 'name', 'frequency'])
-    IL_names = IL_names['name'].drop_duplicates()
-    IL_names = IL_names.astype(str) + ' '
+    il_names = il_names['name'].drop_duplicates()
+    il_names = il_names.astype(str) + ' '
 
     # Import Indirect Activity data and Intervention Channels
-    Indirect_Activities_Export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
-    IA_Data = pd.read_excel(Indirect_Activities_Export, 'Indirect Activity Data')
-    IA_Data = utils.reformat(IA_Data, custom_field_labels)
+    indirect_activities_export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
+    ia_data = pd.read_excel(indirect_activities_export, 'Indirect Activity Data')
+    ia_data = utils.reformat(ia_data, custom_field_labels)
     # Only data clean records for SNAP-Ed
-    IA_Data = IA_Data.loc[IA_Data['program_area'] == 'SNAP-Ed']
-    IA_IC = pd.read_excel(Indirect_Activities_Export, 'Intervention Channels')
+    ia_data = ia_data.loc[ia_data['program_area'] == 'SNAP-Ed']
+    ia_ic = pd.read_excel(indirect_activities_export, 'Intervention Channels')
 
     # Import Partnerships data
-    Partnerships_Export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
-    Part_Data = pd.read_excel(Partnerships_Export, 'Partnership Data')
-    Part_Data = utils.reformat(Part_Data, custom_field_labels)
+    partnerships_export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
+    part_data = pd.read_excel(partnerships_export, 'Partnership Data')
+    part_data = utils.reformat(part_data, custom_field_labels)
     # Only data clean records for SNAP-Ed
     # SNAP-Ed staff occasionally select the wrong program_area for Partnerships
-    Part_Data = Part_Data.loc[(Part_Data['program_area'] == 'SNAP-Ed') |
-                              (Part_Data['reported_by_email'].isin(snap_ed_staff['E-MAIL'])) |
-                              (Part_Data['reported_by_email'].isin(
+    part_data = part_data.loc[(part_data['program_area'] == 'SNAP-Ed') |
+                              (part_data['reported_by_email'].isin(snap_ed_staff['E-MAIL'])) |
+                              (part_data['reported_by_email'].isin(
                                   former_snap_ed_staff['email']))]  # Filtering for former staff will include transfers
 
     # Import Program Activity data and Sessions
-    Program_Activities_Export = pd.ExcelFile(export_dir + "Program_Activities_Export.xlsx")
-    PA_Data = pd.read_excel(Program_Activities_Export, 'Program Activity Data')
-    PA_Data = utils.reformat(PA_Data, custom_field_labels)
+    program_activities_export = pd.ExcelFile(export_dir + "program_activities_export.xlsx")
+    pa_data = pd.read_excel(program_activities_export, 'Program Activity Data')
+    pa_data = utils.reformat(pa_data, custom_field_labels)
     # Subset Program Activities for Family Consumer Science
-    PA_Data_FCS = PA_Data.loc[PA_Data['program_areas'].str.contains('Family Consumer Science')]
+    pa_data_fcs = pa_data.loc[pa_data['program_areas'].str.contains('Family Consumer Science')]
     # Subset Program Activities for SNAP-Ed
-    PA_Data = PA_Data.loc[PA_Data['program_areas'].str.contains('SNAP-Ed')]
-    PA_Sessions = pd.read_excel(Program_Activities_Export, 'Sessions')
+    pa_data = pa_data.loc[pa_data['program_areas'].str.contains('SNAP-Ed')]
+    pa_sessions = pd.read_excel(program_activities_export, 'Sessions')
 
     # Import PSE Site Activity data, Needs, Readiness, Effectiveness, and Changes
-    PSE_Site_Activities_Export = pd.ExcelFile(export_dir + "PSE_Site_Activity_Export.xlsx")
-    PSE_Data = pd.read_excel(PSE_Site_Activities_Export, 'PSE Data')
-    PSE_Data = utils.reformat(PSE_Data, custom_field_labels)
-    PSE_NRE = pd.read_excel(PSE_Site_Activities_Export, 'Needs, Readiness, Effectiveness')
-    PSE_Changes = pd.read_excel(PSE_Site_Activities_Export, 'Changes')
+    pse_site_activities_export = pd.ExcelFile(export_dir + "PSE_Site_Activity_Export.xlsx")
+    pse_data = pd.read_excel(pse_site_activities_export, 'PSE Data')
+    pse_data = utils.reformat(pse_data, custom_field_labels)
+    pse_nre = pd.read_excel(pse_site_activities_export, 'Needs, Readiness, Effectiveness')
+    pse_changes = pd.read_excel(pse_site_activities_export, 'Changes')
 
     # Import Update Notifications, used for the Corrections Report
-    Update_Notes = pd.read_excel(update_notifications,
+    update_notes = pd.read_excel(update_notifications,
                                  sheet_name='Monthly Data Cleaning').drop(columns=['Tab'])
 
     # Monthly PEARS Data Cleaning
@@ -209,14 +223,14 @@ def main(creds,
     # Coaltions
 
     # Convert counties to units for use in update notification email
-    Coa_Data['coalition_unit'] = Coa_Data['coalition_unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']),
+    coa_data['coalition_unit'] = coa_data['coalition_unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']),
                                                                         '', regex=True)
-    Coa_Data = pd.merge(Coa_Data, unit_counties, how='left', left_on='coalition_unit', right_on='County')
-    Coa_Data.loc[(~Coa_Data['coalition_unit'].isin(unit_counties['Unit #'])) &
-                 (Coa_Data['coalition_unit'].isin(unit_counties['County'])), 'coalition_unit'] = Coa_Data['Unit #']
+    coa_data = pd.merge(coa_data, unit_counties, how='left', left_on='coalition_unit', right_on='County')
+    coa_data.loc[(~coa_data['coalition_unit'].isin(unit_counties['Unit #'])) &
+                 (coa_data['coalition_unit'].isin(unit_counties['County'])), 'coalition_unit'] = coa_data['Unit #']
 
     # Filter out test records, select relevant columns
-    Coa_Data = Coa_Data.loc[~Coa_Data['coalition_name'].str.contains('(?i)TEST', regex=True),
+    coa_data = coa_data.loc[~coa_data['coalition_name'].str.contains('(?i)TEST', regex=True),
                             ['coalition_id',
                              'coalition_name',
                              'reported_by',
@@ -230,65 +244,65 @@ def main(creds,
 
     # Set Coalition data cleaning flags
 
-    Coa_Data['GENERAL INFORMATION TAB UPDATES'] = np.nan
+    coa_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
-    Coa_Data['GI UPDATE1'] = np.nan
-    Coa_Data.loc[Coa_Data[
+    coa_data['GI UPDATE1'] = np.nan
+    coa_data.loc[coa_data[
                      'action_plan_name'].isnull(), 'GI UPDATE1'] = 'Please select \'Health: Chronic Disease Prevention & Management\' for Action Plan Name.'
 
-    Coa_Data['GI UPDATE2'] = np.nan
-    Coa_Data.loc[Coa_Data['program_area'] != 'SNAP-Ed', 'GI UPDATE2'] = 'Please select \'SNAP-Ed\' for Program Area.'
+    coa_data['GI UPDATE2'] = np.nan
+    coa_data.loc[coa_data['program_area'] != 'SNAP-Ed', 'GI UPDATE2'] = 'Please select \'SNAP-Ed\' for Program Area.'
 
     # Concatenate General Information tab updates
-    Coa_Data['GENERAL INFORMATION TAB UPDATES'] = Coa_Data['GI UPDATE1'].fillna('') + '\n' + Coa_Data['GI UPDATE2'].fillna(
+    coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GI UPDATE1'].fillna('') + '\n' + coa_data['GI UPDATE2'].fillna(
         '')
-    Coa_Data.loc[Coa_Data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    Coa_Data['GENERAL INFORMATION TAB UPDATES'] = Coa_Data['GENERAL INFORMATION TAB UPDATES'].str.strip()
+    coa_data.loc[coa_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
+    coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
 
-    Coa_Data['CUSTOM DATA TAB UPDATES'] = np.nan
-    Coa_Data.loc[Coa_Data[
+    coa_data['CUSTOM DATA TAB UPDATES'] = np.nan
+    coa_data.loc[coa_data[
                      'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
 
-    Coa_Data['COALITION MEMBERS TAB UPDATES'] = np.nan
+    coa_data['COALITION MEMBERS TAB UPDATES'] = np.nan
 
     # Count Coalition Members of each Coalition, flag Coalitions that have none
-    Coa_Data['CM UPDATE1'] = np.nan
-    Coa_Members_Count = Coa_Members.groupby('coalition_id')['member_id'].count().reset_index(name='# of Members')
-    Coa_Data = pd.merge(Coa_Data, Coa_Members_Count, how='left', on='coalition_id')
-    Coa_Data.loc[(Coa_Data['# of Members'].isnull()) | (
-            Coa_Data['# of Members'] == 0), 'CM UPDATE1'] = 'Please add organizational members to this coalition.'
+    coa_data['CM UPDATE1'] = np.nan
+    coa_members_Count = coa_members.groupby('coalition_id')['member_id'].count().reset_index(name='# of Members')
+    coa_data = pd.merge(coa_data, coa_members_Count, how='left', on='coalition_id')
+    coa_data.loc[(coa_data['# of Members'].isnull()) | (
+            coa_data['# of Members'] == 0), 'CM UPDATE1'] = 'Please add organizational members to this coalition.'
 
     # Subsequent updates require Members data
-    Coa_Members_Data = pd.merge(Coa_Data, Coa_Members, how='left', on='coalition_id').rename(
+    coa_members_Data = pd.merge(coa_data, coa_members, how='left', on='coalition_id').rename(
         columns={'name': 'member_name'})
 
-    Coa_Members_Data['CM UPDATE2'] = np.nan
-    Coa_Members_Data.loc[
-        (Coa_Members_Data['type'] != 'Community members/individuals') & (Coa_Members_Data['site_id'].isnull()),
+    coa_members_Data['CM UPDATE2'] = np.nan
+    coa_members_Data.loc[
+        (coa_members_Data['type'] != 'Community members/individuals') & (coa_members_Data['site_id'].isnull()),
         'CM UPDATE2'] = 'Please add the Site to the Coalition Member(s) of this coalition.'
 
     # Flag Coalition Members that contain individuals' names
-    Coa_Members_Data['CM UPDATE3'] = np.nan
+    coa_members_Data['CM UPDATE3'] = np.nan
     # Terms indicating false positives
     exclude_terms = ['University', 'Hospital', 'YMCA', 'Center', 'County', 'Elementary', 'Foundation', 'Church', 'Club',
                      'Daycare', 'Housing', 'SNAP-Ed']
-    Coa_Members_Data.loc[(Coa_Members_Data['member_name'].str.contains('|'.join(IL_names), na=False)) &
-                         (Coa_Members_Data['member_name'].str.count(' ') == 1) &
-                         (~Coa_Members_Data['member_name'].str.contains('|'.join(exclude_terms), na=False)),
+    coa_members_Data.loc[(coa_members_Data['member_name'].str.contains('|'.join(il_names), na=False)) &
+                         (coa_members_Data['member_name'].str.count(' ') == 1) &
+                         (~coa_members_Data['member_name'].str.contains('|'.join(exclude_terms), na=False)),
                          'CM UPDATE3'] = 'The Coalition Member Name cannot contain names of individuals. Please enter either the organization name or \'Community member\'.'
 
     # Concatenate Coalition Members tab updates
-    Coa_Members_Data['COALITION MEMBERS TAB UPDATES'] = (Coa_Members_Data['CM UPDATE1'].fillna('') +
-                                                         '\n' + Coa_Members_Data['CM UPDATE2'].fillna('') +
-                                                         '\n' + Coa_Members_Data['CM UPDATE3'].fillna(''))
-    Coa_Members_Data.loc[
-        Coa_Members_Data['COALITION MEMBERS TAB UPDATES'].str.isspace(), 'COALITION MEMBERS TAB UPDATES'] = np.nan
-    Coa_Members_Data['COALITION MEMBERS TAB UPDATES'] = Coa_Members_Data['COALITION MEMBERS TAB UPDATES'].str.strip()
-    Coa_Members_Data['COALITION MEMBERS TAB UPDATES'] = Coa_Members_Data['COALITION MEMBERS TAB UPDATES'].str.replace(
+    coa_members_Data['COALITION MEMBERS TAB UPDATES'] = (coa_members_Data['CM UPDATE1'].fillna('') +
+                                                         '\n' + coa_members_Data['CM UPDATE2'].fillna('') +
+                                                         '\n' + coa_members_Data['CM UPDATE3'].fillna(''))
+    coa_members_Data.loc[
+        coa_members_Data['COALITION MEMBERS TAB UPDATES'].str.isspace(), 'COALITION MEMBERS TAB UPDATES'] = np.nan
+    coa_members_Data['COALITION MEMBERS TAB UPDATES'] = coa_members_Data['COALITION MEMBERS TAB UPDATES'].str.strip()
+    coa_members_Data['COALITION MEMBERS TAB UPDATES'] = coa_members_Data['COALITION MEMBERS TAB UPDATES'].str.replace(
         r'\n+', '', regex=True)
 
     # Subset records that require updates
-    Coa_Corrections = Coa_Members_Data.loc[Coa_Members_Data.filter(like='UPDATE').notnull().any(1)]
+    Coa_Corrections = coa_members_Data.loc[coa_members_Data.filter(like='UPDATE').notnull().any(1)]
     member_updates = ['CM UPDATE2', 'CM UPDATE3']
     Coa_Corrections = drop_child_dupes(Coa_Corrections, member_updates, 'coalition_id', 'member_id')
     # Coa_Corrections is exported in the Corrections Report
@@ -321,14 +335,14 @@ def main(creds,
     # Set Indirect Activity data cleaning flags
 
     # Convert counties to units for use in update notification email
-    IA_Data['unit'] = IA_Data['unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
-    IA_Data = pd.merge(IA_Data, unit_counties, how='left', left_on='unit', right_on='County')
-    IA_Data.loc[
-        (~IA_Data['unit'].isin(unit_counties['Unit #'])) & (IA_Data['unit'].isin(unit_counties['County'])), 'unit'] = \
-    IA_Data['Unit #']
+    ia_data['unit'] = ia_data['unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
+    ia_data = pd.merge(ia_data, unit_counties, how='left', left_on='unit', right_on='County')
+    ia_data.loc[
+        (~ia_data['unit'].isin(unit_counties['Unit #'])) & (ia_data['unit'].isin(unit_counties['County'])), 'unit'] = \
+    ia_data['Unit #']
 
     # Filter out test records, select relevant columns
-    IA_Data = IA_Data.loc[~IA_Data['title'].str.contains('(?i)TEST', regex=True),
+    ia_data = ia_data.loc[~ia_data['title'].str.contains('(?i)TEST', regex=True),
                           ['activity_id',
                            'title',
                            'reported_by',
@@ -343,15 +357,15 @@ def main(creds,
 
     # Set Indirect Activity data cleaning flags
 
-    IA_Data['CUSTOM DATA TAB UPDATES'] = np.nan
+    ia_data['CUSTOM DATA TAB UPDATES'] = np.nan
 
-    IA_Data.loc[IA_Data.duplicated(subset=['reported_by_email', 'type'], keep=False),
+    ia_data.loc[ia_data.duplicated(subset=['reported_by_email', 'type'], keep=False),
                 'CUSTOM DATA TAB UPDATES'] = 'Indirect Activity entries with the same Type must be combined into a single entry.'
-    IA_Data.loc[IA_Data[
+    ia_data.loc[ia_data[
                     'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
 
     # Filter out test records, select relevant columns
-    IA_IC = IA_IC.loc[~IA_IC['activity'].str.contains('(?i)TEST', regex=True),
+    ia_ic = ia_ic.loc[~ia_ic['activity'].str.contains('(?i)TEST', regex=True),
                       ['activity_id',
                        'activity',
                        'channel_id',
@@ -361,61 +375,61 @@ def main(creds,
                        'site_name',
                        'reach',
                        'newly_reached']]
-    IA_IC['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = np.nan
+    ia_ic['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = np.nan
 
     # Subsequent updates require Intervention Channels data
-    IA_IC_Data = pd.merge(IA_Data, IA_IC, how='left', on='activity_id')
+    ia_ic_Data = pd.merge(ia_data, ia_ic, how='left', on='activity_id')
 
     # Flag Intervention Channels that don't contain a date in their description
-    IA_IC_Data['IC UPDATE1'] = np.nan
+    ia_ic_Data['IC UPDATE1'] = np.nan
     months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    IA_IC_Data['description'] = IA_IC_Data['description'].astype(str)
-    IA_IC_Data.loc[IA_IC_Data['description'] == 'nan', 'description'] = ''
-    IA_IC_Data.loc[~IA_IC_Data['description'].str.contains('|'.join(months)) & ~IA_IC_Data['description'].str.contains(
+    ia_ic_Data['description'] = ia_ic_Data['description'].astype(str)
+    ia_ic_Data.loc[ia_ic_Data['description'] == 'nan', 'description'] = ''
+    ia_ic_Data.loc[~ia_ic_Data['description'].str.contains('|'.join(months)) & ~ia_ic_Data['description'].str.contains(
         r'\d+/|-|.{1}\d{2,4}'),
                    'IC UPDATE1'] = 'Add the date this activity occurred to the Description.'
 
-    IA_IC_Data['IC UPDATE2'] = np.nan
-    # IA_IC_Data.loc[(IA_IC_Data['site_name'].isnull()) | (IA_IC_Data['site_name'] == 'abc placeholder'),
+    ia_ic_Data['IC UPDATE2'] = np.nan
+    # ia_ic_Data.loc[(ia_ic_Data['site_name'].isnull()) | (ia_ic_Data['site_name'] == 'abc placeholder'),
     #                'IC UPDATE2'] = 'Select a Site as directed by the cheat sheet.'
     # As of 3/18/22, Indirect Activity site is set to a required field in PEARS
 
-    IA_IC_Data['IC UPDATE3'] = np.nan
-    IA_IC_Data.loc[(IA_IC_Data['newly_reached'].notnull()) & (
-            IA_IC_Data['newly_reached'] != 0), 'IC UPDATE3'] = 'Newly Reached number must be \'0\'.'
+    ia_ic_Data['IC UPDATE3'] = np.nan
+    ia_ic_Data.loc[(ia_ic_Data['newly_reached'].notnull()) & (
+            ia_ic_Data['newly_reached'] != 0), 'IC UPDATE3'] = 'Newly Reached number must be \'0\'.'
 
-    IA_IC_Data['IC UPDATE4'] = np.nan
-    IA_IC_Data.loc[(IA_IC_Data['reach'].isnull()) | (IA_IC_Data['reach'] == 0),
+    ia_ic_Data['IC UPDATE4'] = np.nan
+    ia_ic_Data.loc[(ia_ic_Data['reach'].isnull()) | (ia_ic_Data['reach'] == 0),
                    'IC UPDATE4'] = 'Please enter a non-zero value for \'Estimated # of unique individuals reached\'.'
     # How are null reach values possible?
     # Reach is null if there are no Intervention Channels for the Indirect Activity
 
-    IA_IC_Data['IC UPDATE5'] = np.nan
-    IA_IC_Data.loc[IA_IC_Data.duplicated(subset=['activity_id', 'description', 'site_id'], keep=False),
+    ia_ic_Data['IC UPDATE5'] = np.nan
+    ia_ic_Data.loc[ia_ic_Data.duplicated(subset=['activity_id', 'description', 'site_id'], keep=False),
                    'IC UPDATE5'] = 'Please remove duplicate Intervention Channels or differentiate them by entering date and name in Description according to the cheat sheets.'
 
-    IA_IC_Data['IC UPDATE6'] = np.nan
-    IA_IC_Data.loc[IA_IC_Data[
+    ia_ic_Data['IC UPDATE6'] = np.nan
+    ia_ic_Data.loc[ia_ic_Data[
                        'channel'] == "Hard copy materials (e.g. flyers, pamphlets, activity books, posters, banners, postcards, recipe cards, or newsletters for mailings)",
                    'IC UPDATE6'] = 'Please delete Intervention Channels for hard copy materials, which should not be reported for FY22.'
 
     # Concatenate Intervention Channels and Rearch tab updates
-    IA_IC_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = (IA_IC_Data['IC UPDATE1'].fillna('') +
-                                                                 '\n' + IA_IC_Data['IC UPDATE2'].fillna('') +
-                                                                 '\n' + IA_IC_Data['IC UPDATE3'].fillna('') +
-                                                                 '\n' + IA_IC_Data['IC UPDATE4'].fillna('') +
-                                                                 '\n' + IA_IC_Data['IC UPDATE5'].fillna('') +
-                                                                 '\n' + IA_IC_Data['IC UPDATE6'].fillna(''))
-    IA_IC_Data.loc[IA_IC_Data[
+    ia_ic_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = (ia_ic_Data['IC UPDATE1'].fillna('') +
+                                                                 '\n' + ia_ic_Data['IC UPDATE2'].fillna('') +
+                                                                 '\n' + ia_ic_Data['IC UPDATE3'].fillna('') +
+                                                                 '\n' + ia_ic_Data['IC UPDATE4'].fillna('') +
+                                                                 '\n' + ia_ic_Data['IC UPDATE5'].fillna('') +
+                                                                 '\n' + ia_ic_Data['IC UPDATE6'].fillna(''))
+    ia_ic_Data.loc[ia_ic_Data[
                        'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.isspace(), 'INTERVENTION CHANNELS AND REACH TAB UPDATES'] = np.nan
-    IA_IC_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = IA_IC_Data[
+    ia_ic_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = ia_ic_Data[
         'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.strip()
-    IA_IC_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = IA_IC_Data[
+    ia_ic_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = ia_ic_Data[
         'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.replace(r'\n+', '\n', regex=True)
 
     # Subset records that require updates
-    IA_Corrections = IA_IC_Data.loc[IA_IC_Data.filter(like='UPDATE').notnull().any(1)]
-    IC_Updates = IA_IC_Data.columns[IA_IC_Data.columns.str.contains('IC')].tolist()
+    IA_Corrections = ia_ic_Data.loc[ia_ic_Data.filter(like='UPDATE').notnull().any(1)]
+    IC_Updates = ia_ic_Data.columns[ia_ic_Data.columns.str.contains('IC')].tolist()
     IA_Corrections = drop_child_dupes(IA_Corrections, IC_Updates, 'activity_id', 'channel_id')
     # IA_Corrections is exported in the Corrections Report
     IA_Corrections_Cols = ['activity_id',
@@ -443,14 +457,14 @@ def main(creds,
     # Partnerships
 
     # Convert counties to units for use in update notification email
-    Part_Data['partnership_unit'] = Part_Data['partnership_unit'].str.replace(
+    part_data['partnership_unit'] = part_data['partnership_unit'].str.replace(
         '|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
-    Part_Data = pd.merge(Part_Data, unit_counties, how='left', left_on='partnership_unit', right_on='County')
-    Part_Data.loc[(~Part_Data['partnership_unit'].isin(unit_counties['Unit #'])) &
-                  (Part_Data['partnership_unit'].isin(unit_counties['County'])), 'partnership_unit'] = Part_Data['Unit #']
+    part_data = pd.merge(part_data, unit_counties, how='left', left_on='partnership_unit', right_on='County')
+    part_data.loc[(~part_data['partnership_unit'].isin(unit_counties['Unit #'])) &
+                  (part_data['partnership_unit'].isin(unit_counties['County'])), 'partnership_unit'] = part_data['Unit #']
 
     # Filter out test records, select relevant columns
-    Part_Data = Part_Data.loc[~Part_Data['partnership_name'].str.contains('(?i)TEST', regex=True),
+    part_data = part_data.loc[~part_data['partnership_name'].str.contains('(?i)TEST', regex=True),
                               ['partnership_id',
                                'partnership_name',
                                'reported_by',
@@ -467,37 +481,37 @@ def main(creds,
 
     # Set Partnerships data cleaning flags
 
-    Part_Data['GENERAL INFORMATION TAB UPDATES'] = np.nan
+    part_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
-    Part_Data['GI UPDATE1'] = np.nan
-    Part_Data.loc[Part_Data[
+    part_data['GI UPDATE1'] = np.nan
+    part_data.loc[part_data[
                       'action_plan_name'].isnull(), 'GI UPDATE1'] = 'Please enter the Action Plan Name for the current report year.'
 
-    Part_Data['GI UPDATE2'] = np.nan
-    Part_Data.loc[(Part_Data['is_direct_education_intervention'] == 0) & (Part_Data['is_pse_intervention'] == 0),
+    part_data['GI UPDATE2'] = np.nan
+    part_data.loc[(part_data['is_direct_education_intervention'] == 0) & (part_data['is_pse_intervention'] == 0),
                   'GI UPDATE2'] = 'Please select \'Direct Education\' and/or \'Policy, Systems & Environmental Changes\' for this partner\'s intervention types.'
 
-    Part_Data['GI UPDATE3'] = np.nan
-    Part_Data.loc[Part_Data['program_area'] != 'SNAP-Ed', 'GI UPDATE3'] = 'Please select \'SNAP-Ed\' for Program Area.'
+    part_data['GI UPDATE3'] = np.nan
+    part_data.loc[part_data['program_area'] != 'SNAP-Ed', 'GI UPDATE3'] = 'Please select \'SNAP-Ed\' for Program Area.'
 
     # Concatenate General Information tab updates
-    Part_Data['GENERAL INFORMATION TAB UPDATES'] = (Part_Data['GI UPDATE1'].fillna('') +
-                                                    '\n' + Part_Data['GI UPDATE2'].fillna('') +
-                                                    '\n' + Part_Data['GI UPDATE3'].fillna(''))
-    Part_Data.loc[Part_Data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    Part_Data['GENERAL INFORMATION TAB UPDATES'] = Part_Data['GENERAL INFORMATION TAB UPDATES'].str.strip()
-    Part_Data['GENERAL INFORMATION TAB UPDATES'] = Part_Data['GENERAL INFORMATION TAB UPDATES'].str.replace(r'\n+', '\n',
+    part_data['GENERAL INFORMATION TAB UPDATES'] = (part_data['GI UPDATE1'].fillna('') +
+                                                    '\n' + part_data['GI UPDATE2'].fillna('') +
+                                                    '\n' + part_data['GI UPDATE3'].fillna(''))
+    part_data.loc[part_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
+    part_data['GENERAL INFORMATION TAB UPDATES'] = part_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
+    part_data['GENERAL INFORMATION TAB UPDATES'] = part_data['GENERAL INFORMATION TAB UPDATES'].str.replace(r'\n+', '\n',
                                                                                                             regex=True)
 
-    Part_Data['CUSTOM DATA TAB UPDATES'] = np.nan
-    Part_Data.loc[Part_Data[
+    part_data['CUSTOM DATA TAB UPDATES'] = np.nan
+    part_data.loc[part_data[
                       'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
 
-    Part_Data['EVALUATION TAB UPDATES'] = np.nan
-    Part_Data.loc[Part_Data['relationship_depth'].isnull(), 'EVALUATION TAB UPDATES'] = 'Enter the Relationship Depth.'
+    part_data['EVALUATION TAB UPDATES'] = np.nan
+    part_data.loc[part_data['relationship_depth'].isnull(), 'EVALUATION TAB UPDATES'] = 'Enter the Relationship Depth.'
 
     # Subset records that require updates
-    Part_Corrections = Part_Data.loc[Part_Data.filter(like='UPDATE').notnull().any(1)]
+    Part_Corrections = part_data.loc[part_data.filter(like='UPDATE').notnull().any(1)]
     # Part_Corrections is exported in the Corrections Report
     Part_Corrections_Cols = ['partnership_id',
                              'partnership_name',
@@ -521,36 +535,36 @@ def main(creds,
     # Set Program Activities data cleaning flags
 
     # Select relevant columns
-    PA_Sessions = PA_Sessions.loc[:,
+    pa_sessions = pa_sessions.loc[:,
                   ['session_id', 'program_id', 'start_date', 'start_date_with_time', 'length', 'num_participants']]
 
-    PA_Sessions['GENERAL INFORMATION TAB UPDATES'] = np.nan
+    pa_sessions['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
-    PA_Sessions['GI UPDATE1'] = np.nan
-    PA_Sessions['start_date'] = pd.to_datetime(PA_Sessions['start_date'])
-    PA_Sessions.loc[(PA_Sessions['start_date'] < report_year_start) | (PA_Sessions['start_date'] > report_year_end),
+    pa_sessions['GI UPDATE1'] = np.nan
+    pa_sessions['start_date'] = pd.to_datetime(pa_sessions['start_date'])
+    pa_sessions.loc[(pa_sessions['start_date'] < report_year_start) | (pa_sessions['start_date'] > report_year_end),
                     'GI UPDATE1'] = 'Please enter a session Start Date within 10/01/2021 to 09/30/2022.'
 
-    PA_Sessions['GI UPDATE2'] = np.nan
-    PA_Sessions.loc[(PA_Sessions['start_date_with_time'] < ts) & (
-        PA_Sessions['num_participants'].isnull()), 'GI UPDATE2'] = 'Please enter the number of participants.'
-    PA_Sessions.loc[(PA_Sessions['start_date_with_time'] < ts) & (
-            PA_Sessions['num_participants'] == 0), 'GI UPDATE2'] = 'Please delete sessions with 0 participants.'
+    pa_sessions['GI UPDATE2'] = np.nan
+    pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts) & (
+        pa_sessions['num_participants'].isnull()), 'GI UPDATE2'] = 'Please enter the number of participants.'
+    pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts) & (
+            pa_sessions['num_participants'] == 0), 'GI UPDATE2'] = 'Please delete sessions with 0 participants.'
 
-    PA_Sessions['GI UPDATE3'] = np.nan
-    PA_Sessions.loc[PA_Sessions.duplicated(subset=['program_id', 'start_date_with_time'],
+    pa_sessions['GI UPDATE3'] = np.nan
+    pa_sessions.loc[pa_sessions.duplicated(subset=['program_id', 'start_date_with_time'],
                                            keep=False), 'GI UPDATE3'] = 'Please remove duplicate Sessions.'
 
     # Convert counties to units for use in update notification email
-    PA_Data['unit'] = PA_Data['unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
-    PA_Data = pd.merge(PA_Data, unit_counties, how='left', left_on='unit', right_on='County')
-    PA_Data.loc[
-        (~PA_Data['unit'].isin(unit_counties['Unit #'])) & (PA_Data['unit'].isin(unit_counties['County'])), 'unit'] = \
-    PA_Data['Unit #']
+    pa_data['unit'] = pa_data['unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
+    pa_data = pd.merge(pa_data, unit_counties, how='left', left_on='unit', right_on='County')
+    pa_data.loc[
+        (~pa_data['unit'].isin(unit_counties['Unit #'])) & (pa_data['unit'].isin(unit_counties['County'])), 'unit'] = \
+    pa_data['Unit #']
 
     # Filter out test records, select relevant columns
-    PA_Data = PA_Data.loc[(~PA_Data['name'].str.contains('(?i)TEST', regex=True))
-                          & (PA_Data['name'] != 'abc placeholder'),
+    pa_data = pa_data.loc[(~pa_data['name'].str.contains('(?i)TEST', regex=True))
+                          & (pa_data['name'] != 'abc placeholder'),
                           ['program_id',
                            'reported_by',
                            'reported_by_email',
@@ -570,77 +584,77 @@ def main(creds,
                            'snap_ed_special_projects']]
 
     # Subsequent updates require Program Activity data
-    PA_Sessions_Data = pd.merge(PA_Data, PA_Sessions, how='left', on='program_id', suffixes=('_PA', '_Session'))
+    pa_sessions_Data = pd.merge(pa_data, pa_sessions, how='left', on='program_id', suffixes=('_PA', '_Session'))
 
-    PA_Sessions_Data['GI UPDATE4'] = np.nan
-    PA_Sessions_Data.loc[(PA_Sessions_Data['length'] < 20) | (
-        PA_Sessions_Data['length'].isnull()), 'GI UPDATE4'] = 'Please enter a Session Length of 20 mins or longer.'
+    pa_sessions_Data['GI UPDATE4'] = np.nan
+    pa_sessions_Data.loc[(pa_sessions_Data['length'] < 20) | (
+        pa_sessions_Data['length'].isnull()), 'GI UPDATE4'] = 'Please enter a Session Length of 20 mins or longer.'
 
     # Concatenate General Information tab updates
-    PA_Sessions_Data['GENERAL INFORMATION TAB UPDATES'] = (PA_Sessions_Data['GI UPDATE1'].fillna('') +
-                                                           '\n' + PA_Sessions_Data['GI UPDATE2'].fillna('') +
-                                                           '\n' + PA_Sessions_Data['GI UPDATE3'].fillna('') +
-                                                           '\n' + PA_Sessions_Data['GI UPDATE4'].fillna(''))
-    PA_Sessions_Data.loc[
-        PA_Sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    PA_Sessions_Data['GENERAL INFORMATION TAB UPDATES'] = PA_Sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.strip()
-    PA_Sessions_Data['GENERAL INFORMATION TAB UPDATES'] = PA_Sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.replace(
+    pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'] = (pa_sessions_Data['GI UPDATE1'].fillna('') +
+                                                           '\n' + pa_sessions_Data['GI UPDATE2'].fillna('') +
+                                                           '\n' + pa_sessions_Data['GI UPDATE3'].fillna('') +
+                                                           '\n' + pa_sessions_Data['GI UPDATE4'].fillna(''))
+    pa_sessions_Data.loc[
+        pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
+    pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'] = pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.strip()
+    pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'] = pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.replace(
         r'\n+', '\n', regex=True)
 
-    PA_Sessions_Data['CUSTOM DATA TAB UPDATES'] = np.nan
-    PA_Sessions_Data.loc[PA_Sessions_Data[
+    pa_sessions_Data['CUSTOM DATA TAB UPDATES'] = np.nan
+    pa_sessions_Data.loc[pa_sessions_Data[
                              'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
-    PA_Sessions_Data.loc[(PA_Sessions_Data['snap_ed_special_projects'].str.contains('None'))
-                         & (PA_Sessions_Data[
+    pa_sessions_Data.loc[(pa_sessions_Data['snap_ed_special_projects'].str.contains('None'))
+                         & (pa_sessions_Data[
                                 'snap_ed_special_projects'] != 'None'), 'CUSTOM DATA TAB UPDATES'] = 'Please remove \'None\' from Special Projects.'
 
-    PA_Sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
+    pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
 
-    PA_Sessions_Data['SCD UPDATE1'] = np.nan
-    PA_Sessions_Data.loc[PA_Sessions_Data[
+    pa_sessions_Data['SCD UPDATE1'] = np.nan
+    pa_sessions_Data.loc[pa_sessions_Data[
                              'intervention'].isnull(), 'SCD UPDATE1'] = 'Please complete the SNAP-Ed Custom Data tab for this entry.'
-    PA_Sessions_Data.loc[PA_Sessions_Data['intervention'] != 'SNAP-Ed Community Network',
+    pa_sessions_Data.loc[pa_sessions_Data['intervention'] != 'SNAP-Ed Community Network',
                          'SCD UPDATE1'] = 'Please select \'SNAP-Ed Community Network\' for the Intervention Name.'
 
-    PA_Sessions_Data['SCD UPDATE2'] = np.nan
+    pa_sessions_Data['SCD UPDATE2'] = np.nan
     settings_other = ['Other places people', 'Other settings people']
-    PA_Sessions_Data.loc[PA_Sessions_Data['setting'].str.contains('|'.join(settings_other),
+    pa_sessions_Data.loc[pa_sessions_Data['setting'].str.contains('|'.join(settings_other),
                                                                   na=False), 'SCD UPDATE2'] = 'Please select a Setting besides \'Other\'.'
 
-    PA_Sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = PA_Sessions_Data['SCD UPDATE1'].fillna('') + '\n' + \
-                                                          PA_Sessions_Data['SCD UPDATE2'].fillna('')
-    PA_Sessions_Data.loc[
-        PA_Sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'].str.isspace(), 'SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
-    PA_Sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = PA_Sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'].str.strip()
+    pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = pa_sessions_Data['SCD UPDATE1'].fillna('') + '\n' + \
+                                                          pa_sessions_Data['SCD UPDATE2'].fillna('')
+    pa_sessions_Data.loc[
+        pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'].str.isspace(), 'SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
+    pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'].str.strip()
 
     # Flag Program Activities where the unique participants is equal to the sum of session participants
-    PA_Sessions_Data['DEMOGRAPHICS TAB UPDATES'] = np.nan
-    PA_Sessions_Metrics = PA_Sessions.groupby('program_id').agg({'session_id': 'count',
+    pa_sessions_Data['DEMOGRAPHICS TAB UPDATES'] = np.nan
+    pa_sessions_Metrics = pa_sessions.groupby('program_id').agg({'session_id': 'count',
                                                                  'num_participants': 'sum'}).reset_index().rename(
         columns={'session_id': '# of Sessions',
                  'num_participants': 'Total Session Participants'})
-    PA_Sessions_Data = pd.merge(PA_Sessions_Data, PA_Sessions_Metrics, how='left', on='program_id')
-    PA_Sessions_Data.loc[(PA_Sessions_Data['# of Sessions'] > 1) &
-                         (PA_Sessions_Data['Total Session Participants'] == PA_Sessions_Data['participants_total']),
+    pa_sessions_Data = pd.merge(pa_sessions_Data, pa_sessions_Metrics, how='left', on='program_id')
+    pa_sessions_Data.loc[(pa_sessions_Data['# of Sessions'] > 1) &
+                         (pa_sessions_Data['Total Session Participants'] == pa_sessions_Data['participants_total']),
                          'DEMOGRAPHICS TAB UPDATES'] = 'Total number of unique participants should not equal total session participants. Please enter total unique participants according to the Cheat Sheet. If each session had brand new people, please enter these as individual program activity entries.'
     # End of year: For entries with only 1 session, the total # of session participants should = total # of unique participants.
 
     # Data clean FCS Program Activities
-    PA_Data_FCS['CUSTOM DATA TAB UPDATES'] = np.nan
-    PA_Data_FCS.loc[(PA_Data_FCS['fcs_program_team'].str.contains('SNAP-Ed'))
-                    & (PA_Data_FCS[
+    pa_data_fcs['CUSTOM DATA TAB UPDATES'] = np.nan
+    pa_data_fcs.loc[(pa_data_fcs['fcs_program_team'].str.contains('SNAP-Ed'))
+                    & (pa_data_fcs[
                            'fcs_grant_goals'].isnull()), 'CUSTOM DATA TAB UPDATES'] = 'Please enter the IL SNAP-Ed Grant Goals for this entry.'
 
     # Append FCS Program Activities to SNAP-Ed Program Activities
-    add_cols = PA_Sessions_Data.columns[~PA_Sessions_Data.columns.isin(PA_Data_FCS.columns)].tolist()
-    PA_Data_FCS = pd.concat([PA_Data_FCS, pd.DataFrame(columns=add_cols)])  # turns program_id into float
-    PA_Data_FCS['program_id'] = PA_Data_FCS['program_id'].astype(int)
-    sub_cols = PA_Sessions_Data.columns[PA_Sessions_Data.columns.isin(PA_Data_FCS.columns)].tolist()
-    PA_Sessions_Data = PA_Sessions_Data.append(PA_Data_FCS[sub_cols], ignore_index=True)
+    add_cols = pa_sessions_Data.columns[~pa_sessions_Data.columns.isin(pa_data_fcs.columns)].tolist()
+    pa_data_fcs = pd.concat([pa_data_fcs, pd.DataFrame(columns=add_cols)])  # turns program_id into float
+    pa_data_fcs['program_id'] = pa_data_fcs['program_id'].astype(int)
+    sub_cols = pa_sessions_Data.columns[pa_sessions_Data.columns.isin(pa_data_fcs.columns)].tolist()
+    pa_sessions_Data = pa_sessions_Data.append(pa_data_fcs[sub_cols], ignore_index=True)
     # possible dupes added?
 
     # Subset records that require updates
-    PA_Corrections = PA_Sessions_Data.loc[PA_Sessions_Data.filter(like='UPDATE').notnull().any(1)]
+    PA_Corrections = pa_sessions_Data.loc[pa_sessions_Data.filter(like='UPDATE').notnull().any(1)]
     session_updates = ['GI UPDATE1', 'GI UPDATE2', 'GI UPDATE4']
     PA_Corrections = drop_child_dupes(PA_Corrections, session_updates, 'program_id', 'session_id')
     # PA_Corrections is exported in the Corrections Report
@@ -674,16 +688,16 @@ def main(creds,
     # PSE Site Activities
 
     # Convert counties to units for use in update notification email
-    PSE_Data['pse_unit'] = PSE_Data['pse_unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '',
+    pse_data['pse_unit'] = pse_data['pse_unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '',
                                                             regex=True)
-    PSE_Data = pd.merge(PSE_Data, unit_counties, how='left', left_on='pse_unit', right_on='County')
-    PSE_Data.loc[(~PSE_Data['pse_unit'].isin(unit_counties['Unit #'])) & (
-        PSE_Data['pse_unit'].isin(unit_counties['County'])), 'pse_unit'] = PSE_Data['Unit #']
+    pse_data = pd.merge(pse_data, unit_counties, how='left', left_on='pse_unit', right_on='County')
+    pse_data.loc[(~pse_data['pse_unit'].isin(unit_counties['Unit #'])) & (
+        pse_data['pse_unit'].isin(unit_counties['County'])), 'pse_unit'] = pse_data['Unit #']
 
     # Filter out test records, select relevant columns
-    PSE_Data['name'] = PSE_Data['name'].astype(str)
-    PSE_Data = PSE_Data.loc[
-        (~PSE_Data['name'].str.contains('(?i)TEST', regex=True, na=False)) & (PSE_Data['site_name'] != 'abc placeholder'),
+    pse_data['name'] = pse_data['name'].astype(str)
+    pse_data = pse_data.loc[
+        (~pse_data['name'].str.contains('(?i)TEST', regex=True, na=False)) & (pse_data['site_name'] != 'abc placeholder'),
         ['pse_id',
          'site_id',
          'site_name',
@@ -703,97 +717,97 @@ def main(creds,
 
     # Set PSE data cleaning flags
 
-    PSE_Data['GENERAL INFORMATION TAB UPDATES'] = np.nan
+    pse_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
-    PSE_Data['GI UPDATE1'] = np.nan
-    PSE_Data.loc[(PSE_Data['start_fiscal_year'] != 2022) & (
-            PSE_Data['planning_stage_sites_contacted_and_agreed_to_participate'] == 1),
+    pse_data['GI UPDATE1'] = np.nan
+    pse_data.loc[(pse_data['start_fiscal_year'] != 2022) & (
+            pse_data['planning_stage_sites_contacted_and_agreed_to_participate'] == 1),
                  'GI UPDATE1'] = 'Only sites who agreed to partner for the first time in FY22 should have \'Sites contacted and agreed to participate\' selected.'
 
-    PSE_Data['GI UPDATE2'] = np.nan
-    PSE_Data.loc[PSE_Data['program_area'] == 'Family Consumer Science',
+    pse_data['GI UPDATE2'] = np.nan
+    pse_data.loc[pse_data['program_area'] == 'Family Consumer Science',
                  'GI UPDATE2'] = 'Please create a new PSE Site Activity for this record with Program Area set to "SNAP-Ed" and delete this entry.'
 
-    PSE_Data['GI UPDATE3'] = np.nan
-    PSE_Data.loc[(PSE_Data['site_id'].duplicated(keep=False))
-                 & (PSE_Data[
+    pse_data['GI UPDATE3'] = np.nan
+    pse_data.loc[(pse_data['site_id'].duplicated(keep=False))
+                 & (pse_data[
                         'pse_unit'] != 'CPHP'), 'GI UPDATE3'] = 'Please remove duplicate PSE Site Activity entries for the same site.'
 
-    PSE_Data['GI UPDATE4'] = np.nan
-    PSE_Data.loc[PSE_Data[
+    pse_data['GI UPDATE4'] = np.nan
+    pse_data.loc[pse_data[
                      'intervention'] != 'SNAP-Ed Community Network', 'GI UPDATE4'] = 'Please select \'SNAP-Ed Community Network\' for the Intervention Name.'
 
     # Concatenate General Information tab updates
-    PSE_Data['GENERAL INFORMATION TAB UPDATES'] = (PSE_Data['GI UPDATE1'].fillna('') +
-                                                   '\n' + PSE_Data['GI UPDATE2'].fillna('') +
-                                                   '\n' + PSE_Data['GI UPDATE3'].fillna('') +
-                                                   '\n' + PSE_Data['GI UPDATE4'].fillna(''))
-    PSE_Data.loc[PSE_Data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    PSE_Data['GENERAL INFORMATION TAB UPDATES'] = PSE_Data['GENERAL INFORMATION TAB UPDATES'].str.strip()
-    PSE_Data['GENERAL INFORMATION TAB UPDATES'] = PSE_Data['GENERAL INFORMATION TAB UPDATES'].str.replace(r'\n+', '\n',
+    pse_data['GENERAL INFORMATION TAB UPDATES'] = (pse_data['GI UPDATE1'].fillna('') +
+                                                   '\n' + pse_data['GI UPDATE2'].fillna('') +
+                                                   '\n' + pse_data['GI UPDATE3'].fillna('') +
+                                                   '\n' + pse_data['GI UPDATE4'].fillna(''))
+    pse_data.loc[pse_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
+    pse_data['GENERAL INFORMATION TAB UPDATES'] = pse_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
+    pse_data['GENERAL INFORMATION TAB UPDATES'] = pse_data['GENERAL INFORMATION TAB UPDATES'].str.replace(r'\n+', '\n',
                                                                                                           regex=True)
 
-    PSE_Data['CUSTOM DATA TAB UPDATES'] = np.nan
-    PSE_Data.loc[PSE_Data[
+    pse_data['CUSTOM DATA TAB UPDATES'] = np.nan
+    pse_data.loc[pse_data[
                      'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
 
     # Select relevant Needs, Readiness, Effectiveness columns
-    PSE_NRE = PSE_NRE.loc[:,
+    pse_nre = pse_nre.loc[:,
               ['pse_id', 'assessment_id', 'assessment_type', 'assessment_tool', 'baseline_score', 'baseline_date',
                'follow_up_date', 'follow_up_score']]
 
     # Subsequent updates require Needs, Readiness, Effectiveness data
-    PSE_NRE_Data = pd.merge(PSE_Data, PSE_NRE, how='left', on='pse_id')
+    pse_nre_Data = pd.merge(pse_data, pse_nre, how='left', on='pse_id')
 
-    PSE_NRE_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = np.nan
+    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = np.nan
 
-    PSE_NRE_Data['NRE UPDATE1'] = np.nan
-    PSE_NRE_Data.loc[(PSE_NRE_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (PSE_NRE_Data['baseline_score'].isnull()) &
-                     (~PSE_NRE_Data['assessment_tool'].str.contains('SLAQ',
+    pse_nre_Data['NRE UPDATE1'] = np.nan
+    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
+                     (pse_nre_Data['baseline_score'].isnull()) &
+                     (~pse_nre_Data['assessment_tool'].str.contains('SLAQ',
                                                                     na=False)), 'NRE UPDATE1'] = 'Please enter the Assessment Score according to the Cheat Sheet.'
 
-    PSE_NRE_Data['NRE UPDATE2'] = np.nan
-    PSE_NRE_Data['baseline_date'] = pd.to_datetime(PSE_NRE_Data['baseline_date'])
-    PSE_NRE_Data.loc[(PSE_NRE_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (PSE_NRE_Data[
+    pse_nre_Data['NRE UPDATE2'] = np.nan
+    pse_nre_Data['baseline_date'] = pd.to_datetime(pse_nre_Data['baseline_date'])
+    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
+                     (pse_nre_Data[
                           'baseline_date'].isnull()), 'NRE UPDATE2'] = 'Please enter a Baseline Date even if pre-assessment was conducted in a previous reporting year.'
 
-    PSE_NRE_Data['NRE UPDATE3'] = np.nan
-    PSE_NRE_Data['follow_up_date'] = pd.to_datetime(PSE_NRE_Data['follow_up_date'])
-    PSE_NRE_Data.loc[(PSE_NRE_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (PSE_NRE_Data['follow_up_date'].notnull()) &
-                     (PSE_NRE_Data[
+    pse_nre_Data['NRE UPDATE3'] = np.nan
+    pse_nre_Data['follow_up_date'] = pd.to_datetime(pse_nre_Data['follow_up_date'])
+    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
+                     (pse_nre_Data['follow_up_date'].notnull()) &
+                     (pse_nre_Data[
                           'follow_up_score'].isnull()), 'NRE UPDATE3'] = 'Please enter the Follow Up Assessment Score according to the Cheat Sheet.'
 
-    PSE_NRE_Data['NRE UPDATE4'] = np.nan
-    PSE_NRE_Data.loc[(PSE_NRE_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (PSE_NRE_Data['follow_up_date'].isnull()) &
-                     (PSE_NRE_Data[
+    pse_nre_Data['NRE UPDATE4'] = np.nan
+    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
+                     (pse_nre_Data['follow_up_date'].isnull()) &
+                     (pse_nre_Data[
                           'follow_up_score'].notnull()), 'NRE UPDATE4'] = 'Please enter the Follow Up Assessment Date.'
 
     # Concatenate Needs, Readiness, Effectiveness tab updates
-    PSE_NRE_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = (PSE_NRE_Data['NRE UPDATE1'].fillna('') +
-                                                                    '\n' + PSE_NRE_Data['NRE UPDATE2'].fillna('') +
-                                                                    '\n' + PSE_NRE_Data['NRE UPDATE3'].fillna('') +
-                                                                    '\n' + PSE_NRE_Data['NRE UPDATE4'].fillna(''))
-    PSE_NRE_Data.loc[PSE_NRE_Data[
+    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = (pse_nre_Data['NRE UPDATE1'].fillna('') +
+                                                                    '\n' + pse_nre_Data['NRE UPDATE2'].fillna('') +
+                                                                    '\n' + pse_nre_Data['NRE UPDATE3'].fillna('') +
+                                                                    '\n' + pse_nre_Data['NRE UPDATE4'].fillna(''))
+    pse_nre_Data.loc[pse_nre_Data[
                          'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.isspace(), 'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = np.nan
-    PSE_NRE_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = PSE_NRE_Data[
+    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = pse_nre_Data[
         'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.strip()
-    PSE_NRE_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = PSE_NRE_Data[
+    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = pse_nre_Data[
         'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.replace(r'\n+', '\n', regex=True)
 
     # Subsequent updates require Changes Adopted data
-    PSE_NRE_Changes_Data = pd.merge(PSE_NRE_Data, PSE_Changes[['pse_id', 'change_id']], how='left',
+    pse_nre_Changes_Data = pd.merge(pse_nre_Data, pse_changes[['pse_id', 'change_id']], how='left',
                                     on='pse_id').drop_duplicates(subset=['pse_id', 'assessment_id'])
 
-    PSE_NRE_Changes_Data['CHANGES ADOPTED TAB UPDATES'] = np.nan
-    PSE_NRE_Changes_Data.loc[(PSE_NRE_Changes_Data['change_id'].notnull()) & (PSE_NRE_Changes_Data['total_reach'].isnull()),
+    pse_nre_Changes_Data['CHANGES ADOPTED TAB UPDATES'] = np.nan
+    pse_nre_Changes_Data.loc[(pse_nre_Changes_Data['change_id'].notnull()) & (pse_nre_Changes_Data['total_reach'].isnull()),
                              'CHANGES ADOPTED TAB UPDATES'] = 'Please enter Total Reach according to the Cheat Sheet.'
 
     # Subset records that require updates
-    PSE_Corrections = PSE_NRE_Changes_Data.loc[PSE_NRE_Changes_Data.filter(like='UPDATE').notnull().any(1)]
+    PSE_Corrections = pse_nre_Changes_Data.loc[pse_nre_Changes_Data.filter(like='UPDATE').notnull().any(1)]
     # PSE_Corrections is exported in the Corrections Report
     PSE_Corrections_Cols = ['pse_id',
                             'site_name',
@@ -840,7 +854,7 @@ def main(creds,
 
     Corrections_Sum = pd.concat(Module_Sums, ignore_index=True)
     Corrections_Sum.insert(0, 'Module', Corrections_Sum.pop('Module'))
-    Corrections_Sum = pd.merge(Corrections_Sum, Update_Notes, how='left', on=['Module', 'Update'])
+    Corrections_Sum = pd.merge(Corrections_Sum, update_notes, how='left', on=['Module', 'Update'])
 
     # Calculate the month for this report
     prev_month = (ts - pd.DateOffset(months=1)).to_period('M')

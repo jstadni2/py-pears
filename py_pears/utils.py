@@ -39,9 +39,11 @@ def download_s3_exports(profile, org, date=pd.to_datetime("today").strftime("%Y/
     # Create a list of filenames to download from the S3
     # Might need additional string operations (capitalization, spaces to underscores)
     # Throw exception for invalid modules
-    # What happens if modules is None?
+    # What happens if modules is None? > 'NoneType' object is not iterable
     # Add _Export.xlsx for all exc
-    module_filenames = [s + '_Export.xlsx' for s in modules]
+    module_filenames = []
+    if modules is not None:
+        module_filenames = [s + '_Export.xlsx' for s in modules]
 
     # Download the Excel files to the destination directory
     for f in response['Contents']:
