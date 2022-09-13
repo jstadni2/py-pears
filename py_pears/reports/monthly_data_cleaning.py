@@ -54,17 +54,36 @@ def counties_to_units(data, unit_field='unit', unit_counties=pd.DataFrame()):
 # update: string for the label of the update column
 # notification: string for the desired notification column from update_notes (default: 'Notification1')
 def get_update_note(update_notes, module, update, notification='Notification1'):
-    return update_notes.loc[update_notes['Module'] == module & update_notes['Update'] == update, notification].item()
+    return update_notes.loc[(update_notes['Module'] == module)
+                            & (update_notes['Update'] == update), notification].item()
 
 
+# Concatenate update columns into a single column of newline-separated update notifications
 # data: dataframe of PEARS module data
+# concat_col: string for the label of the concatenated column
+# update_cols: list of strings of update columns to concatenate
 def concat_updates(data, concat_col, update_cols):
     out_data = data.copy()
     # Use a lambda/list comprehension?
     out_data[concat_col] = out_data[update_cols].apply(lambda x: '\n'.join(x.fillna('').values.tolist()), axis=1)
-    # out_data['GENERAL INFORMATION TAB UPDATES'] = out_data['GI UPDATE1'].fillna('') + '\n' + out_data['GI UPDATE2'].fillna(
-    #     '')
+    out_data.loc[out_data[concat_col].str.isspace(), concat_col] = np.nan
+    out_data[concat_col] = out_data[concat_col].str.strip()
+    if len(update_cols) > 2:
+        out_data[concat_col] = out_data[concat_col].str.replace(r'\n+', '', regex=True)
     return out_data
+
+
+# Format corrections for the HTML tables in update notification emails
+# corrections: dataframe of PEARS module corrections
+# cols: list of strings for the columns of corrections to include in the notification table
+# index: string for the column label of the PEARS module index
+# int_cols: list of strings for the columns to downcast to integers
+# rename_cols: dict of columns to rename, key of the original column and value for the renamed column
+# update_cols: update columns that will have newlines replaced with spaces
+# date_cols: datetime columns to convert to strings in '%m-%d-%Y' format
+def corrections_email_format(corrections, cols, index, int_cols, rename_cols, update_cols, date_cols):
+    email_corrections = corrections.copy()
+    return email_corrections
 
 # Function to calculate total records for each module and update.
 # df: dataframe of module corrections
@@ -261,25 +280,23 @@ def main(creds,
     coa_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
     coa_data['GI UPDATE1'] = np.nan
-    note1 = get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
     coa_data.loc[coa_data['action_plan_name'].isnull(),
-                 'GI UPDATE1'] = note1
+                 'GI UPDATE1'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
 
     coa_data['GI UPDATE2'] = np.nan
     coa_data.loc[coa_data['program_area'] != 'SNAP-Ed',
                  'GI UPDATE2'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE2')
 
     # Concatenate General Information tab updates
-    # CREATE FUNCTION
-    coa_data = concat_updates(coa_data, concat_col='GENERAL INFORMATION TAB UPDATES', update_cols=['GI UPDATE1', 'GI UPDATE2'])
-    # coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GI UPDATE1'].fillna('') + '\n' + coa_data['GI UPDATE2'].fillna(
-    #     '')
-    coa_data.loc[coa_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    coa_data['GENERAL INFORMATION TAB UPDATES'] = coa_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
+    coa_data = concat_updates(coa_data,
+                              concat_col='GENERAL INFORMATION TAB UPDATES',
+                              update_cols=['GI UPDATE1', 'GI UPDATE2'])
 
     coa_data['CUSTOM DATA TAB UPDATES'] = np.nan
     coa_data.loc[coa_data['snap_ed_grant_goals'].isnull(),
-                 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
+                 'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                              module='Coalitions',
+                                                              update='CUSTOM DATA TAB UPDATES')
 
     coa_data['COALITION MEMBERS TAB UPDATES'] = np.nan
 
@@ -287,8 +304,8 @@ def main(creds,
     coa_data['CM UPDATE1'] = np.nan
     coa_members_count = coa_members.groupby('coalition_id')['member_id'].count().reset_index(name='# of Members')
     coa_data = pd.merge(coa_data, coa_members_count, how='left', on='coalition_id')
-    coa_data.loc[(coa_data['# of Members'].isnull()) | (
-            coa_data['# of Members'] == 0), 'CM UPDATE1'] = 'Please add organizational members to this coalition.'
+    coa_data.loc[(coa_data['# of Members'].isnull()) | (coa_data['# of Members'] == 0),
+                 'CM UPDATE1'] = get_update_note(update_notes, module='Coalitions', update='CM UPDATE1')
 
     # Subsequent updates require Members data
     coa_members_data = pd.merge(coa_data, coa_members, how='left', on='coalition_id').rename(
@@ -297,7 +314,7 @@ def main(creds,
     coa_members_data['CM UPDATE2'] = np.nan
     coa_members_data.loc[
         (coa_members_data['type'] != 'Community members/individuals') & (coa_members_data['site_id'].isnull()),
-        'CM UPDATE2'] = 'Please add the Site to the Coalition Member(s) of this coalition.'
+        'CM UPDATE2'] = get_update_note(update_notes, module='Coalitions', update='CM UPDATE2')
 
     # Flag Coalition Members that contain individuals' names
     coa_members_data['CM UPDATE3'] = np.nan
@@ -307,24 +324,21 @@ def main(creds,
     coa_members_data.loc[(coa_members_data['member_name'].str.contains('|'.join(il_names), na=False)) &
                          (coa_members_data['member_name'].str.count(' ') == 1) &
                          (~coa_members_data['member_name'].str.contains('|'.join(exclude_terms), na=False)),
-                         'CM UPDATE3'] = 'The Coalition Member Name cannot contain names of individuals. Please enter either the organization name or \'Community member\'.'
+                         'CM UPDATE3'] = get_update_note(update_notes, module='Coalitions', update='CM UPDATE3')
 
     # Concatenate Coalition Members tab updates
-    coa_members_data['COALITION MEMBERS TAB UPDATES'] = (coa_members_data['CM UPDATE1'].fillna('') +
-                                                         '\n' + coa_members_data['CM UPDATE2'].fillna('') +
-                                                         '\n' + coa_members_data['CM UPDATE3'].fillna(''))
-    coa_members_data.loc[
-        coa_members_data['COALITION MEMBERS TAB UPDATES'].str.isspace(), 'COALITION MEMBERS TAB UPDATES'] = np.nan
-    coa_members_data['COALITION MEMBERS TAB UPDATES'] = coa_members_data['COALITION MEMBERS TAB UPDATES'].str.strip()
-    coa_members_data['COALITION MEMBERS TAB UPDATES'] = coa_members_data['COALITION MEMBERS TAB UPDATES'].str.replace(
-        r'\n+', '', regex=True)
+    coa_members_data = concat_updates(coa_members_data,
+                                      concat_col='COALITION MEMBERS TAB UPDATES',
+                                      update_cols=['CM UPDATE1', 'CM UPDATE2', 'CM UPDATE3'])
 
     # Subset records that require updates
-    Coa_Corrections = coa_members_data.loc[coa_members_data.filter(like='UPDATE').notnull().any(1)]
-    member_updates = ['CM UPDATE2', 'CM UPDATE3']
-    Coa_Corrections = drop_child_dupes(Coa_Corrections, member_updates, 'coalition_id', 'member_id')
-    # Coa_Corrections is exported in the Corrections Report
-    Coa_Corrections_Cols = ['coalition_id',
+    coa_corrections = coa_members_data.loc[coa_members_data.filter(like='UPDATE').notnull().any(1)]
+    coa_corrections = drop_child_dupes(coa_corrections,
+                                       c_updates=['CM UPDATE2', 'CM UPDATE3'],
+                                       parent_id='coalition_id',
+                                       child_id='member_id')
+    # coa_corrections is exported in the Corrections Report
+    coa_corrections_cols = ['coalition_id',
                             'coalition_name',
                             'reported_by',
                             'reported_by_email',
@@ -337,16 +351,16 @@ def main(creds,
                             '# of Members',
                             'member_name',
                             'site_id']
-    Coa_Corrections2 = Coa_Corrections[Coa_Corrections_Cols].set_index('coalition_id').rename(
+    coa_corrections2 = coa_corrections[coa_corrections_cols].set_index('coalition_id').rename(
         columns={'coalition_unit': 'unit'})
-    Coa_Corrections2['site_id'] = pd.to_numeric(Coa_Corrections2['site_id'], downcast='integer')
-    Coa_Corrections2 = Coa_Corrections2.fillna('')
-    Coa_Corrections2['GENERAL INFORMATION TAB UPDATES'] = Coa_Corrections2['GENERAL INFORMATION TAB UPDATES'].str.replace(
+    coa_corrections2['site_id'] = pd.to_numeric(coa_corrections2['site_id'], downcast='integer')
+    coa_corrections2 = coa_corrections2.fillna('')
+    coa_corrections2['GENERAL INFORMATION TAB UPDATES'] = coa_corrections2['GENERAL INFORMATION TAB UPDATES'].str.replace(
         '\n', ' ', regex=True)
-    Coa_Corrections2['COALITION MEMBERS TAB UPDATES'] = Coa_Corrections2['COALITION MEMBERS TAB UPDATES'].str.replace('\n',
+    coa_corrections2['COALITION MEMBERS TAB UPDATES'] = coa_corrections2['COALITION MEMBERS TAB UPDATES'].str.replace('\n',
                                                                                                                       ' ',
                                                                                                                       regex=True)
-    # Coa_Corrections2 is used in the update notification email body
+    # coa_corrections2 is used in the update notification email body
 
     # Indirect Activities
 
@@ -466,7 +480,7 @@ def main(creds,
                            'reach']
     IA_Corrections2 = IA_Corrections[IA_Corrections_Cols].set_index('activity_id')
     IA_Corrections2['newly_reached'] = pd.to_numeric(IA_Corrections2['newly_reached'], downcast='integer')
-    IA_Corrections2['newly_reached'] = pd.to_numeric(IA_Corrections2['channel_id'], downcast='integer')
+    IA_Corrections2['channel_id'] = pd.to_numeric(IA_Corrections2['channel_id'], downcast='integer')
     IA_Corrections2 = IA_Corrections2.fillna('')
     IA_Corrections2['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = IA_Corrections2[
         'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.replace('\n', ' ')
@@ -863,7 +877,7 @@ def main(creds,
     # Corrections Report
 
     # Summarize and concatenate module corrections
-    Coa_Sum = corrections_sum(Coa_Corrections, 'Coalitions')
+    Coa_Sum = corrections_sum(coa_corrections, 'Coalitions')
     IA_Sum = corrections_sum(IA_Corrections, 'Indirect Activities')
     Part_Sum = corrections_sum(Part_Corrections, 'Partnerships')
     PA_Sum = corrections_sum(PA_Corrections, 'Program Activities')
@@ -883,7 +897,7 @@ def main(creds,
     file_path1 = output_dir + '/' + filename1
 
     dfs = {'Corrections Summary': Corrections_Sum,
-           'Coalitions': Coa_Corrections,
+           'Coalitions': coa_corrections,
            'Indirect Activities': IA_Corrections,
            'Partnerships': Part_Corrections,
            'Program Activities': PA_Corrections,
@@ -945,7 +959,7 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [Coa_Corrections2, IA_Corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
+        Module_Corrections2 = [coa_corrections2, IA_Corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
         notify_staff = pd.DataFrame()
 
         for df in Module_Corrections2:
@@ -969,7 +983,7 @@ def main(creds,
 
         for x in current_staff:
 
-            Coa_df = staff_corrections(Coa_Corrections2, former=False, staff_email=x[1])
+            Coa_df = staff_corrections(coa_corrections2, former=False, staff_email=x[1])
             IA_df = staff_corrections(IA_Corrections2, former=False, staff_email=x[1])
             Part_df = staff_corrections(Part_Corrections2, former=False, staff_email=x[1])
             PA_df = staff_corrections(PA_Corrections2, former=False, staff_email=x[1])
@@ -1031,7 +1045,7 @@ def main(creds,
         # Subset former staff using the staff list
         former_staff = notify_staff.loc[~notify_staff['reported_by_email'].isin(staff['email'])]
 
-        Coa_df = staff_corrections(Coa_Corrections2)
+        Coa_df = staff_corrections(coa_corrections2)
         IA_df = staff_corrections(IA_Corrections2)
         Part_df = staff_corrections(Part_Corrections2)
         PA_df = staff_corrections(PA_Corrections2)

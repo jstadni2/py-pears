@@ -22,10 +22,10 @@ update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
 creds = utils.load_credentials()
 
 # Run Sites Report with default inputs
-sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
+#sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
 
 # Run Staff Report with default inputs
-staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
+#staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
 
 # Run Monthly Data Cleaning with default inputs
 monthly_data_cleaning.main(creds=creds,
