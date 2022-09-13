@@ -83,7 +83,25 @@ def concat_updates(data, concat_col, update_cols):
 # date_cols: datetime columns to convert to strings in '%m-%d-%Y' format
 def corrections_email_format(corrections, cols, index, int_cols, rename_cols, update_cols, date_cols):
     email_corrections = corrections.copy()
+    email_corrections = email_corrections[cols].set_index(index)
+
+    if int_cols:
+        for int_col in int_cols:  # Use lambda?
+            email_corrections[int_col] = pd.to_numeric(email_corrections[int_col], downcast='integer')
+
+    if rename_cols:
+        email_corrections = email_corrections.rename(columns=rename_cols)
+
+    for update_col in update_cols:
+        email_corrections[update_col] = email_corrections[update_col].str.replace('\n', ' ')
+
+    if date_cols:
+        for date_col in date_cols:
+            email_corrections[date_col] = pd.to_datetime(email_corrections[date_col]).dt.strftime('%m-%d-%Y %r')
+
+    email_corrections = email_corrections.fillna('')
     return email_corrections
+
 
 # Function to calculate total records for each module and update.
 # df: dataframe of module corrections
