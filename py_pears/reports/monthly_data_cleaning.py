@@ -81,7 +81,8 @@ def concat_updates(data, concat_col, update_cols):
 # rename_cols: dict of columns to rename, key of the original column and value for the renamed column
 # update_cols: update columns that will have newlines replaced with spaces
 # date_cols: datetime columns to convert to strings in '%m-%d-%Y' format
-def corrections_email_format(corrections, cols, index, int_cols, rename_cols, update_cols, date_cols):
+# datetime_cols: datetime columns to convert to strings in '%m-%d-%Y %r' format
+def corrections_email_format(corrections, cols, index, int_cols, rename_cols, update_cols, date_cols, datetime_cols):
     email_corrections = corrections.copy()
     email_corrections = email_corrections[cols].set_index(index)
 
@@ -97,7 +98,11 @@ def corrections_email_format(corrections, cols, index, int_cols, rename_cols, up
 
     if date_cols:
         for date_col in date_cols:
-            email_corrections[date_col] = pd.to_datetime(email_corrections[date_col]).dt.strftime('%m-%d-%Y %r')
+            email_corrections[date_col] = pd.to_datetime(email_corrections[date_col]).dt.strftime('%m-%d-%Y')
+
+    if datetime_cols:
+        for datetime_col in datetime_cols:
+            email_corrections[datetime_col] = pd.to_datetime(email_corrections[datetime_col]).dt.strftime('%m-%d-%Y %r')
 
     email_corrections = email_corrections.fillna('')
     return email_corrections
@@ -356,29 +361,27 @@ def main(creds,
                                        parent_id='coalition_id',
                                        child_id='member_id')
     # coa_corrections is exported in the Corrections Report
-    coa_corrections_cols = ['coalition_id',
-                            'coalition_name',
-                            'reported_by',
-                            'reported_by_email',
-                            'coalition_unit',
-                            'GENERAL INFORMATION TAB UPDATES',
-                            'action_plan_name',
-                            'program_area',
-                            'CUSTOM DATA TAB UPDATES',
-                            'COALITION MEMBERS TAB UPDATES',
-                            '# of Members',
-                            'member_name',
-                            'site_id']
-    coa_corrections2 = coa_corrections[coa_corrections_cols].set_index('coalition_id').rename(
-        columns={'coalition_unit': 'unit'})
-    coa_corrections2['site_id'] = pd.to_numeric(coa_corrections2['site_id'], downcast='integer')
-    coa_corrections2 = coa_corrections2.fillna('')
-    coa_corrections2['GENERAL INFORMATION TAB UPDATES'] = coa_corrections2['GENERAL INFORMATION TAB UPDATES'].str.replace(
-        '\n', ' ', regex=True)
-    coa_corrections2['COALITION MEMBERS TAB UPDATES'] = coa_corrections2['COALITION MEMBERS TAB UPDATES'].str.replace('\n',
-                                                                                                                      ' ',
-                                                                                                                      regex=True)
-    # coa_corrections2 is used in the update notification email body
+
+    # Reformat coa_corrections for the update notification email body
+    coa_corrections_email = corrections_email_format(coa_corrections,
+                                                     cols=['coalition_id',
+                                                           'coalition_name',
+                                                           'reported_by',
+                                                           'reported_by_email',
+                                                           'coalition_unit',
+                                                           'GENERAL INFORMATION TAB UPDATES',
+                                                           'action_plan_name',
+                                                           'program_area',
+                                                           'CUSTOM DATA TAB UPDATES',
+                                                           'COALITION MEMBERS TAB UPDATES',
+                                                           '# of Members',
+                                                           'member_name',
+                                                           'site_id'],
+                                                     index=['coalition_id'],
+                                                     int_cols=['site_id'],
+                                                     rename_cols={'coalition_unit': 'unit'},
+                                                     update_cols=['GENERAL INFORMATION TAB UPDATES',
+                                                                  'COALITION MEMBERS TAB UPDATES'])
 
     # Indirect Activities
 
@@ -977,7 +980,7 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [coa_corrections2, IA_Corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
+        Module_Corrections2 = [coa_corrections_email, IA_Corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
         notify_staff = pd.DataFrame()
 
         for df in Module_Corrections2:
@@ -1001,7 +1004,7 @@ def main(creds,
 
         for x in current_staff:
 
-            Coa_df = staff_corrections(coa_corrections2, former=False, staff_email=x[1])
+            Coa_df = staff_corrections(coa_corrections_email, former=False, staff_email=x[1])
             IA_df = staff_corrections(IA_Corrections2, former=False, staff_email=x[1])
             Part_df = staff_corrections(Part_Corrections2, former=False, staff_email=x[1])
             PA_df = staff_corrections(PA_Corrections2, former=False, staff_email=x[1])
@@ -1063,7 +1066,7 @@ def main(creds,
         # Subset former staff using the staff list
         former_staff = notify_staff.loc[~notify_staff['reported_by_email'].isin(staff['email'])]
 
-        Coa_df = staff_corrections(coa_corrections2)
+        Coa_df = staff_corrections(coa_corrections_email)
         IA_df = staff_corrections(IA_Corrections2)
         Part_df = staff_corrections(Part_Corrections2)
         PA_df = staff_corrections(PA_Corrections2)
