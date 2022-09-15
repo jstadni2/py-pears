@@ -126,6 +126,29 @@ def corrections_sum(df, module):
     return df_sum
 
 
+# Export the corrections report as a xlsx
+# report_dict: dict of sheet names to dataframes of corrections data
+# file_path: string for the output directory and filename
+def write_corrections_report(report_dict, file_path):
+    writer = pd.ExcelWriter(file_path, engine='xlsxwriter')
+    for sheet_name, df in report_dict.items():
+        df.to_excel(writer, sheet_name=sheet_name, index=False, freeze_panes=(1, 0))
+        worksheet = writer.sheets[sheet_name]
+        workbook = writer.book
+        worksheet.autofilter(0, 0, 0, len(df.columns) - 1)
+        # Conditional format for Corrections Summary
+        blue_bold = workbook.add_format({'bold': True, 'bg_color': '#DEEAF0', 'font_color': '#000000'})
+        worksheet.conditional_format(0, 0, len(df), 2,
+                                     {'type': 'formula', 'criteria': '=$B1="Total"', 'format': blue_bold})
+        for idx, col in enumerate(df):
+            series = df[col]
+            max_len = max((
+                series.astype(str).map(len).max(),
+                len(str(series.name))
+            )) + 1
+            worksheet.set_column(idx, idx, max_len)
+    writer.close()
+
 # Function to subset module corrections for a specific staff member
 # df: dataframe of module corrections
 # former: boolean, True if subsetting corrections for a former staff member
@@ -828,9 +851,14 @@ def main(creds,
                                                               update='CUSTOM DATA TAB UPDATES')
 
     # Select relevant Needs, Readiness, Effectiveness columns
-    pse_nre = pse_nre.loc[:,
-              ['pse_id', 'assessment_id', 'assessment_type', 'assessment_tool', 'baseline_score', 'baseline_date',
-               'follow_up_date', 'follow_up_score']]
+    pse_nre = pse_nre.loc[:, ['pse_id',
+                              'assessment_id',
+                              'assessment_type',
+                              'assessment_tool',
+                              'baseline_score',
+                              'baseline_date',
+                              'follow_up_date',
+                              'follow_up_score']]
 
     # Subsequent updates require Needs, Readiness, Effectiveness data
     pse_nre_data = pd.merge(pse_data, pse_nre, how='left', on='pse_id')
@@ -912,26 +940,29 @@ def main(creds,
     # Corrections Report
 
     # Summarize and concatenate module corrections
-    Coa_Sum = corrections_sum(coa_corrections, 'Coalitions')
-    IA_Sum = corrections_sum(ia_corrections, 'Indirect Activities')
-    Part_Sum = corrections_sum(part_corrections, 'Partnerships')
-    PA_Sum = corrections_sum(pa_corrections, 'Program Activities')
-    PSE_Sum = corrections_sum(pse_corrections, 'PSE Site Activities')
-    Module_Sums = [Coa_Sum, IA_Sum, Part_Sum, PA_Sum, PSE_Sum]
+    corrections_dict = {
+        'Coalitions': coa_corrections,
+        'Indirect Activities': ia_corrections,
+        'Partnerships': part_corrections,
+        'Program Activities': pa_corrections,
+        'PSE Site Activities': pse_corrections
+    }
 
-    Corrections_Sum = pd.concat(Module_Sums, ignore_index=True)
-    Corrections_Sum.insert(0, 'Module', Corrections_Sum.pop('Module'))
-    Corrections_Sum = pd.merge(Corrections_Sum, update_notes, how='left', on=['Module', 'Update'])
+    module_sums = [corrections_sum(corrections, module) for module, corrections in corrections_dict.items()]
+
+    corrections_sums = pd.concat(module_sums, ignore_index=True)
+    corrections_sums.insert(0, 'Module', corrections_sums.pop('Module'))
+    corrections_sums = pd.merge(corrections_sums, update_notes, how='left', on=['Module', 'Update'])
 
     # Calculate the month for this report
     prev_month = (ts - pd.DateOffset(months=1)).to_period('M')
 
     # Export the Corrections Report as an Excel file
 
-    filename1 = 'Monthly PEARS Corrections ' + prev_month.strftime('%Y-%m') + '.xlsx'
-    file_path1 = output_dir + '/' + filename1
+    corrections_report_filename = 'Monthly PEARS Corrections ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    corrections_report_path = output_dir + '/' + corrections_report_filename
 
-    dfs = {'Corrections Summary': Corrections_Sum,
+    dfs = {'Corrections Summary': corrections_sums,
            'Coalitions': coa_corrections,
            'Indirect Activities': ia_corrections,
            'Partnerships': part_corrections,
