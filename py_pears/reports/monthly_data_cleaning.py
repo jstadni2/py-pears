@@ -198,6 +198,16 @@ def main(creds,
          report_cc='',
          report_recipients=''):
 
+    # Download required PEARS exports from S3
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              modules=['User',
+                                       'Program_Activities',
+                                       'Indirect_Activity',
+                                       'Coalition',
+                                       'Partnership',
+                                       'PSE_Site_Activity'])
+
     # Import and consolidate staff lists
     # Data cleaning is only conducted on records related to SNAP-Ed and Family Consumer Science programming
 
@@ -472,7 +482,7 @@ def main(creds,
         r'\d+/|-|.{1}\d{2,4}'),
                    'IC UPDATE1'] = get_update_note(update_notes,
                                                    module='Indirect Activities',
-                                                   update='Indirect Activities')
+                                                   update='IC UPDATE1')
 
     ia_ic_data['IC UPDATE2'] = np.nan
     # ia_ic_data.loc[(ia_ic_data['site_name'].isnull()) | (ia_ic_data['site_name'] == 'abc placeholder'),
