@@ -7,7 +7,7 @@ import py_pears.utils as utils
 # functions for reordering comma-separated name
 # df: dataframe of staff list
 # name_field: column label of name field
-# reordered_name_field: column label of reorded name field
+# reordered_name_field: column label of reordered name field
 # drop_substr_fields: bool for dropping name substring fields
 def reorder_name(df, name_field, reordered_name_field, drop_substr_fields=False):
     out_df = df.copy(deep=True)
@@ -21,7 +21,7 @@ def reorder_name(df, name_field, reordered_name_field, drop_substr_fields=False)
     return out_df
 
 
-# Function to drop duplicate recoorts from merging module data with child records
+# Function to drop duplicate records from merging module data with child records
 # df: dataframe of module corrections
 # c_updates: list of labels of child record update columns
 # parent_id: column label for the module ID
@@ -149,6 +149,7 @@ def write_corrections_report(report_dict, file_path):
             worksheet.set_column(idx, idx, max_len)
     writer.close()
 
+
 # Function to subset module corrections for a specific staff member
 # df: dataframe of module corrections
 # former: boolean, True if subsetting corrections for a former staff member
@@ -160,9 +161,9 @@ def staff_corrections(df, former=True, staff_email='', former_staff=pd.DataFrame
         return df.loc[df['reported_by_email'] == staff_email].drop(columns=['reported_by', 'reported_by_email', 'unit'])
 
 
-# Function to insert a staff member's corrections into an html email template
+# Function to insert a staff member's corrections into a html email template
 # dfs: dicts of module names to staff members' corrections dataframes for that module
-# strs: list of strings that will be appened to the html email template string
+# strs: list of strings that will be appended to the html email template string
 def insert_dfs(dfs, strs):
     for heading, df in dfs.items():
         if df.empty is False:
@@ -201,8 +202,6 @@ def main(creds,
     # Data cleaning is only conducted on records related to SNAP-Ed and Family Consumer Science programming
 
     fy22_inep_staff = pd.ExcelFile(staff_list)
-    # Alternatively, use the absolute path to the staff list
-    # fy22_inep_staff = pd.ExcelFile(r"C:\Users\netid\Box\INEP Staff Lists\FY22 INEP Staff List.xlsx")
     # Adjust header argument in following lines for actual staff list
     snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='SNAP-Ed Staff List', header=0)
     heat_staff = pd.read_excel(fy22_inep_staff, sheet_name='HEAT Project Staff', header=0)
@@ -962,30 +961,13 @@ def main(creds,
     corrections_report_filename = 'Monthly PEARS Corrections ' + prev_month.strftime('%Y-%m') + '.xlsx'
     corrections_report_path = output_dir + '/' + corrections_report_filename
 
-    dfs = {'Corrections Summary': corrections_sums,
-           'Coalitions': coa_corrections,
-           'Indirect Activities': ia_corrections,
-           'Partnerships': part_corrections,
-           'Program Activities': pa_corrections,
-           'PSE': pse_corrections}
-
-    # Create function for write_corrections_report
-    writer = pd.ExcelWriter(file_path1, engine='xlsxwriter')
-    for sheetname, df in dfs.items():  # loop through `dict` of dataframes
-        df.to_excel(writer, sheet_name=sheetname, index=False, freeze_panes=(1, 0))  # send df to writer
-        worksheet = writer.sheets[sheetname]  # pull worksheet object
-        workbook = writer.book
-        worksheet.autofilter(0, 0, 0, len(df.columns) - 1)
-        blue_bold = workbook.add_format({'bold': True, 'bg_color': '#DEEAF0', 'font_color': '#000000'})
-        worksheet.conditional_format(0, 0, len(df), 2, {'type': 'formula', 'criteria': '=$B1="Total"', 'format': blue_bold})
-        for idx, col in enumerate(df):  # loop through all columns
-            series = df[col]
-            max_len = max((
-                series.astype(str).map(len).max(),  # len of largest item
-                len(str(series.name))  # len of column name/header
-            )) + 1  # adding a little extra space
-            worksheet.set_column(idx, idx, max_len)
-    writer.close()
+    write_corrections_report(report_dict={'Corrections Summary': corrections_sums,
+                                          'Coalitions': coa_corrections,
+                                          'Indirect Activities': ia_corrections,
+                                          'Partnerships': part_corrections,
+                                          'Program Activities': pa_corrections,
+                                          'PSE': pse_corrections},
+                             file_path=corrections_report_path)
 
     # Email Update Notifications
 
@@ -1001,15 +983,18 @@ def main(creds,
                     <p>
                     Hello {0},<br><br>
 
-                    A few of your PEARS entries need edits. Please update the entries listed in the table(s) below by <b>5:00pm {1}</b>.
-                    Records not corrected by then will continue to show up on monthly PEARS notifications until they are resolved.
+                    A few of your PEARS entries need edits. Please update the entries listed in the table(s) below by
+                    <b>5:00pm {1}</b>. Records not corrected by then will continue to show up on monthly PEARS
+                    notifications until they are resolved.
                     <ul>
-                      <li>For each entry listed, please make the edit(s) written in the columns labeled <b>UPDATE</b> in the column heading.</li>
+                      <li>For each entry listed, please make the edit(s) written in the columns labeled <b>UPDATE</b> in
+                      the column heading.</li>
                       <li>You can locate entries in PEARS by entering their IDs into the search filter.</li>
                       <li>To edit a PEARS entry previously marked as “complete,” you can mark the entry as “incomplete,”
                           edit the record, and then mark as “complete” again.</li>
                       <li>As a friendly reminder – following the Cheat Sheets
-                          <a href="https://uofi.app.box.com/folder/49632670918?s=wwymjgjd48tyl0ow20vluj196ztbizlw">[Located Here]</a>
+                          <a href="https://uofi.app.box.com/folder/49632670918?s=wwymjgjd48tyl0ow20vluj196ztbizlw">
+                          [Located Here]</a>
                           will help to prevent future PEARS corrections.</li>
                   </ul>
 
@@ -1025,20 +1010,23 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [coa_corrections_email, ia_corrections_email, part_corrections_email, pa_corrections_email, pse_corrections_email]
+        corrections_email_dfs = [coa_corrections_email,
+                                 ia_corrections_email,
+                                 part_corrections_email,
+                                 pa_corrections_email,
+                                 pse_corrections_email]
         notify_staff = pd.DataFrame()
 
-        for df in Module_Corrections2:
+        for df in corrections_email_dfs:
             notify_staff = notify_staff.append(df[['reported_by', 'reported_by_email', 'unit']], ignore_index=True)
 
         notify_staff = notify_staff.sort_values(['reported_by', 'unit']).drop_duplicates(
             subset=['reported_by', 'reported_by_email'], keep='first').reset_index(drop=True)
 
         # Subset current staff using the staff list
-        current_staff = notify_staff.loc[
-            notify_staff['reported_by_email'].isin(staff['email']), ['reported_by', 'reported_by_email', 'unit']]
+        current_staff = notify_staff.loc[notify_staff['reported_by_email'].isin(staff['email']),
+                                         ['reported_by', 'reported_by_email', 'unit']]
         current_staff = current_staff.values.tolist()
-
 
         # Verify emails?
 
@@ -1049,11 +1037,21 @@ def main(creds,
 
         for x in current_staff:
 
-            Coa_df = staff_corrections(coa_corrections_email, former=False, staff_email=x[1])
-            IA_df = staff_corrections(ia_corrections_email, former=False, staff_email=x[1])
-            Part_df = staff_corrections(part_corrections_email, former=False, staff_email=x[1])
-            PA_df = staff_corrections(pa_corrections_email, former=False, staff_email=x[1])
-            PSE_df = staff_corrections(pse_corrections_email, former=False, staff_email=x[1])
+            staff_corrections_dict = {'Coalitions': staff_corrections(coa_corrections_email,
+                                                                      former=False,
+                                                                      staff_email=x[1]),
+                                      'Indirect Activities': staff_corrections(ia_corrections_email,
+                                                                               former=False,
+                                                                               staff_email=x[1]),
+                                      'Partnerships': staff_corrections(part_corrections_email,
+                                                                        former=False,
+                                                                        staff_email=x[1]),
+                                      'Program Activities': staff_corrections(pa_corrections_email,
+                                                                              former=False,
+                                                                              staff_email=x[1]),
+                                      'PSE Site Activities': staff_corrections(pse_corrections_email,
+                                                                               former=False,
+                                                                               staff_email=x[1])}
 
             staff_name = x[0]
             send_to = x[1]
@@ -1062,24 +1060,26 @@ def main(creds,
             # If the recipient's unit is an INEP unit, they are directed to contact their Regional Specialist
             # Else, they are directed to contact the FCS Evaluation team
 
-            response_tag = """If you have any questions or need help please reply to this email and a member of the FCS Evaluation Team will reach out soon.
+            response_tag = """If you have any questions or need help please reply to this email and a member of the
+            FCS Evaluation Team will reach out soon.
                     <br>Thanks and have a great day!<br>
 
                     <br> <b> FCS Evaluation Team </b> <br>
                     <a href = "mailto: your_username@domain.com ">your_username@domain.com </a><br>
             """
 
-            new_Cc = notification_cc
+            new_cc = notification_cc
 
             if ((unit in re_lookup["UNIT #"].tolist()) and
                 (send_to not in state_staff['E-MAIL'].tolist()) and
-                ('@uic.edu' not in send_to) and
-                (re_lookup.loc[re_lookup['UNIT #'] == unit].empty == False)):
-                response_tag = 'If you have any questions or need help please contact your Regional Specialist, <b>{0}</b> (<a href = "mailto: {1} ">{1}</a>).'
+                    ('@uic.edu' not in send_to) and
+                    (re_lookup.loc[re_lookup['UNIT #'] == unit].empty is False)):
+                response_tag = 'If you have any questions or need help please contact your Regional Specialist, ' \
+                               '<b>{0}</b> (<a href = "mailto: {1} ">{1}</a>).'
                 re_name = re_lookup.loc[re_lookup['UNIT #'] == unit, 'REGIONAL EDUCATOR'].item()
                 re_email = re_lookup.loc[re_lookup['UNIT #'] == unit, 'RE E-MAIL'].item()
                 response_tag = response_tag.format(*[re_name, re_email])
-                new_Cc = notification_cc + ', ' + re_email
+                new_cc = notification_cc + ', ' + re_email
 
             # Staff's first name is used in the email salutation
             first_name = staff.loc[staff['email'] == send_to, 'first_name'].item()
@@ -1087,17 +1087,15 @@ def main(creds,
             subject = 'PEARS Entries Updates ' + prev_month.strftime('%b-%Y') + ', Unit ' + unit + ', ' + staff_name
 
             # Insert the corrections dfs into the email body
-            dfs = {'Coalitions': Coa_df, 'Indirect Activities': IA_df, 'Partnerships': Part_df, 'Program Activities': PA_df,
-                   'PSE Site Activities': PSE_df}
             y = [first_name, deadline_date, response_tag]
-            insert_dfs(dfs, y)
+            insert_dfs(staff_corrections_dict, y)
             new_html = html.format(*y)
 
-            # Try to send the email, otherwise add the recpient's email address to failed_recipients
+            # Try to send the email, otherwise add the recipient's email address to failed_recipients
             try:
                 utils.send_mail(send_from=creds['admin_send_from'],
                                 send_to=send_to,
-                                cc=new_Cc,
+                                cc=new_cc,
                                 subject=subject,
                                 html=new_html,
                                 username=creds['admin_username'],
@@ -1111,28 +1109,25 @@ def main(creds,
         # Subset former staff using the staff list
         former_staff = notify_staff.loc[~notify_staff['reported_by_email'].isin(staff['email'])]
 
-        Coa_df = staff_corrections(coa_corrections_email)
-        IA_df = staff_corrections(ia_corrections_email)
-        Part_df = staff_corrections(part_corrections_email)
-        PA_df = staff_corrections(pa_corrections_email)
-        PSE_df = staff_corrections(pse_corrections_email)
-
         # Export former staff corrections as an Excel file
 
-        former_staff_dfs = {'Coalitions': Coa_df, 'Indirect Activities': IA_df, 'Partnerships': Part_df,
-                            'Program Activities': PA_df, 'PSE': PSE_df}
+        former_staff_dict = {'Coalitions': staff_corrections(coa_corrections_email, former_staff=former_staff),
+                             'Indirect Activities': staff_corrections(ia_corrections_email, former_staff=former_staff),
+                             'Partnerships': staff_corrections(part_corrections_email, former_staff=former_staff),
+                             'Program Activities': staff_corrections(pa_corrections_email, former_staff=former_staff),
+                             'PSE': staff_corrections(pse_corrections_email, former_staff=former_staff)}
 
-        filename2 = 'Former Staff PEARS Updates ' + prev_month.strftime('%Y-%m') + '.xlsx'
-        file_path2 = output_dir + '/' + filename2
+        former_staff_filename = 'Former Staff PEARS Updates ' + prev_month.strftime('%Y-%m') + '.xlsx'
+        former_staff_path = output_dir + '/' + former_staff_filename
 
         # UPDATE utils.write_report() TO ACCEPT DICT
-        utils.write_report(file_path2, former_staff_dfs.keys, former_staff_dfs.values)
+        utils.write_report(former_staff_path, former_staff_dict.keys, former_staff_dict.values)
 
         # Send former staff updates email
 
-        subject2 = 'Former Staff PEARS Updates ' + prev_month.strftime('%Y-%m')
+        former_staff_subject = 'Former Staff PEARS Updates ' + prev_month.strftime('%Y-%m')
 
-        html2 = """<html>
+        former_staff_html = """<html>
           <head></head>
         <body>
                     <p>
@@ -1140,17 +1135,22 @@ def main(creds,
 
                     The table(s) below compile PEARS entries created by former staff that require edits.
                     Please update the entries in each sheet by <b>5:00pm {0}</b>.
-                    Records not corrected by then will continue to show up on monthly PEARS notifications until they are resolved.
+                    Records not corrected by then will continue to show up on monthly PEARS notifications until
+                    they are resolved.
                     <ul>
-                      <li>For each entry listed, please make the edit(s) written in the columns labeled <b>UPDATE</b> in the column heading.</li>
+                      <li>For each entry listed, please make the edit(s) written in the columns labeled <b>UPDATE</b> in
+                       the column heading.</li>
                       <li>You can locate entries in PEARS by entering their IDs into the search filter.</li>
                       <li>To edit a PEARS entry previously marked as “complete,”
-                          you can mark the entry as “incomplete,” edit the record, and then mark as “complete” again.</li>
+                          you can mark the entry as “incomplete,” edit the record,
+                          and then mark as “complete” again.</li>
                       <li>As a friendly reminder – following the Cheat Sheets
-                          <a href="https://uofi.app.box.com/folder/49632670918?s=wwymjgjd48tyl0ow20vluj196ztbizlw">[Located Here]</a>
+                          <a href="https://uofi.app.box.com/folder/49632670918?s=wwymjgjd48tyl0ow20vluj196ztbizlw">
+                          [Located Here]</a>
                           will help to prevent future PEARS corrections.</li>
                   </ul>
-                  If you have any questions or need help please reply to this email and a member of the FCS Evaluation Team will reach out soon.
+                  If you have any questions or need help please reply to this email and a member of the
+                  FCS Evaluation Team will reach out soon.
 
                     <br>Thanks and have a great day!<br>
                     <br> <b> FCS Evaluation Team </b> <br>
@@ -1166,24 +1166,24 @@ def main(creds,
         """
         x = [deadline_date]
 
-        insert_dfs(former_staff_dfs, x)
+        insert_dfs(former_staff_dict, x)
 
-        new_html2 = html2.format(*x)
+        former_staff_html = former_staff_html.format(*x)
 
-        # Try to send the email, otherwise add the recpient's email address to failed_recipients
+        # Try to send the email, otherwise add the recipient's email address to failed_recipients
         try:
-            if any(x.empty is False for x in former_staff_dfs.values()):
+            if any(x.empty is False for x in former_staff_dict.values()):
                 utils.send_mail(send_from=creds['admin_send_from'],
                                 send_to=former_staff_recipients,  # rename numbered variables
                                 cc=notification_cc,
-                                subject=subject2,
-                                html=new_html2,
+                                subject=former_staff_subject,
+                                html=former_staff_html,
                                 username=creds['admin_username'],
                                 password=creds['admin_password'],
                                 is_tls=True,
                                 wb=True,
-                                file_path=file_path2,
-                                filename=filename2)
+                                file_path=former_staff_path,
+                                filename=former_staff_filename)
         except smtplib.SMTPException:
             failed_recipients.append(
                 ['RECIPIENT NAME',
@@ -1194,14 +1194,15 @@ def main(creds,
 
         report_subject = 'Monthly PEARS Corrections ' + prev_month.strftime('%b-%Y')
 
-        html3 = """<html>
+        corrections_report_html = """<html>
           <head></head>
         <body>
                     <p>
                     Hello everyone,<br><br>
 
                     The attached reported compiles the most recent round of monthly PEARS corrections.
-                    If you have any questions, please reply to this email and a member of the FCS Evaluation Team will reach out soon.<br>
+                    If you have any questions, please reply to this email and a member of the
+                    FCS Evaluation Team will reach out soon.<br>
 
                     <br>Thanks and have a great day!<br>
                     <br> <b> FCS Evaluation Team </b> <br>
@@ -1211,19 +1212,19 @@ def main(creds,
         </html>
         """
 
-        # Try to send the email, otherwise print failure notication to console
+        # Try to send the email, otherwise print failure notification to console
         try:
             utils.send_mail(send_from=creds['admin_send_from'],
                             send_to=report_recipients,
                             cc=report_cc,
                             subject=report_subject,
-                            html=html3,
+                            html=corrections_report_html,
                             username=creds['admin_username'],
                             password=creds['admin_password'],
                             is_tls=True,
                             wb=True,
-                            file_path=file_path1,
-                            filename=filename1)
+                            file_path=corrections_report_path,
+                            filename=corrections_report_filename)
         except smtplib.SMTPException:
             print("Failed to send Corrections Report.")
 
