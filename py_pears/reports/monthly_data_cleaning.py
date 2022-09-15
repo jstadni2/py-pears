@@ -388,11 +388,7 @@ def main(creds,
     # Set Indirect Activity data cleaning flags
 
     # Convert counties to units for use in update notification email
-    ia_data['unit'] = ia_data['unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
-    ia_data = pd.merge(ia_data, unit_counties, how='left', left_on='unit', right_on='County')
-    ia_data.loc[
-        (~ia_data['unit'].isin(unit_counties['Unit #'])) & (ia_data['unit'].isin(unit_counties['County'])), 'unit'] = \
-    ia_data['Unit #']
+    ia_data = counties_to_units(data=ia_data, unit_field='unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     ia_data = ia_data.loc[~ia_data['title'].str.contains('(?i)TEST', regex=True),
@@ -413,9 +409,15 @@ def main(creds,
     ia_data['CUSTOM DATA TAB UPDATES'] = np.nan
 
     ia_data.loc[ia_data.duplicated(subset=['reported_by_email', 'type'], keep=False),
-                'CUSTOM DATA TAB UPDATES'] = 'Indirect Activity entries with the same Type must be combined into a single entry.'
-    ia_data.loc[ia_data[
-                    'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
+                'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                             module='Indirect Activities',
+                                                             update='CUSTOM DATA TAB UPDATES',
+                                                             notification='Notification1')
+    ia_data.loc[ia_data['snap_ed_grant_goals'].isnull(),
+                'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                             module='Indirect Activities',
+                                                             update='CUSTOM DATA TAB UPDATES',
+                                                             notification='Notification2')
 
     # Filter out test records, select relevant columns
     ia_ic = ia_ic.loc[~ia_ic['activity'].str.contains('(?i)TEST', regex=True),
@@ -431,81 +433,82 @@ def main(creds,
     ia_ic['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = np.nan
 
     # Subsequent updates require Intervention Channels data
-    ia_ic_Data = pd.merge(ia_data, ia_ic, how='left', on='activity_id')
+    ia_ic_data = pd.merge(ia_data, ia_ic, how='left', on='activity_id')
 
     # Flag Intervention Channels that don't contain a date in their description
-    ia_ic_Data['IC UPDATE1'] = np.nan
+    ia_ic_data['IC UPDATE1'] = np.nan
     months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    ia_ic_Data['description'] = ia_ic_Data['description'].astype(str)
-    ia_ic_Data.loc[ia_ic_Data['description'] == 'nan', 'description'] = ''
-    ia_ic_Data.loc[~ia_ic_Data['description'].str.contains('|'.join(months)) & ~ia_ic_Data['description'].str.contains(
+    ia_ic_data['description'] = ia_ic_data['description'].astype(str)
+    ia_ic_data.loc[ia_ic_data['description'] == 'nan', 'description'] = ''
+    ia_ic_data.loc[~ia_ic_data['description'].str.contains('|'.join(months)) & ~ia_ic_data['description'].str.contains(
         r'\d+/|-|.{1}\d{2,4}'),
-                   'IC UPDATE1'] = 'Add the date this activity occurred to the Description.'
+                   'IC UPDATE1'] = get_update_note(update_notes,
+                                                   module='Indirect Activities',
+                                                   update='Indirect Activities')
 
-    ia_ic_Data['IC UPDATE2'] = np.nan
-    # ia_ic_Data.loc[(ia_ic_Data['site_name'].isnull()) | (ia_ic_Data['site_name'] == 'abc placeholder'),
-    #                'IC UPDATE2'] = 'Select a Site as directed by the cheat sheet.'
-    # As of 3/18/22, Indirect Activity site is set to a required field in PEARS
+    ia_ic_data['IC UPDATE2'] = np.nan
+    # ia_ic_data.loc[(ia_ic_data['site_name'].isnull()) | (ia_ic_data['site_name'] == 'abc placeholder'),
+    #                'IC UPDATE2'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE2')
+    # As of 3/18/22, Indirect Activity site is set to a required field in PEARS for Illinois Extension
 
-    ia_ic_Data['IC UPDATE3'] = np.nan
-    ia_ic_Data.loc[(ia_ic_Data['newly_reached'].notnull()) & (
-            ia_ic_Data['newly_reached'] != 0), 'IC UPDATE3'] = 'Newly Reached number must be \'0\'.'
+    ia_ic_data['IC UPDATE3'] = np.nan
+    ia_ic_data.loc[(ia_ic_data['newly_reached'].notnull())
+                   & (ia_ic_data['newly_reached'] != 0),
+                   'IC UPDATE3'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE3')
 
-    ia_ic_Data['IC UPDATE4'] = np.nan
-    ia_ic_Data.loc[(ia_ic_Data['reach'].isnull()) | (ia_ic_Data['reach'] == 0),
-                   'IC UPDATE4'] = 'Please enter a non-zero value for \'Estimated # of unique individuals reached\'.'
+    ia_ic_data['IC UPDATE4'] = np.nan
+    ia_ic_data.loc[(ia_ic_data['reach'].isnull()) | (ia_ic_data['reach'] == 0),
+                   'IC UPDATE4'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE4')
     # How are null reach values possible?
     # Reach is null if there are no Intervention Channels for the Indirect Activity
 
-    ia_ic_Data['IC UPDATE5'] = np.nan
-    ia_ic_Data.loc[ia_ic_Data.duplicated(subset=['activity_id', 'description', 'site_id'], keep=False),
-                   'IC UPDATE5'] = 'Please remove duplicate Intervention Channels or differentiate them by entering date and name in Description according to the cheat sheets.'
+    ia_ic_data['IC UPDATE5'] = np.nan
+    ia_ic_data.loc[ia_ic_data.duplicated(subset=['activity_id', 'description', 'site_id'], keep=False),
+                   'IC UPDATE5'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE5')
 
-    ia_ic_Data['IC UPDATE6'] = np.nan
-    ia_ic_Data.loc[ia_ic_Data[
-                       'channel'] == "Hard copy materials (e.g. flyers, pamphlets, activity books, posters, banners, postcards, recipe cards, or newsletters for mailings)",
-                   'IC UPDATE6'] = 'Please delete Intervention Channels for hard copy materials, which should not be reported for FY22.'
+    ia_ic_data['IC UPDATE6'] = np.nan
+    hard_copy_materials = "Hard copy materials (e.g. flyers, pamphlets, activity books, posters, banners, postcards, " \
+                          "recipe cards, or newsletters for mailings)"
+    ia_ic_data.loc[ia_ic_data['channel'] == hard_copy_materials,
+                   'IC UPDATE6'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE6')
 
-    # Concatenate Intervention Channels and Rearch tab updates
-    ia_ic_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = (ia_ic_Data['IC UPDATE1'].fillna('') +
-                                                                 '\n' + ia_ic_Data['IC UPDATE2'].fillna('') +
-                                                                 '\n' + ia_ic_Data['IC UPDATE3'].fillna('') +
-                                                                 '\n' + ia_ic_Data['IC UPDATE4'].fillna('') +
-                                                                 '\n' + ia_ic_Data['IC UPDATE5'].fillna('') +
-                                                                 '\n' + ia_ic_Data['IC UPDATE6'].fillna(''))
-    ia_ic_Data.loc[ia_ic_Data[
-                       'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.isspace(), 'INTERVENTION CHANNELS AND REACH TAB UPDATES'] = np.nan
-    ia_ic_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = ia_ic_Data[
-        'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.strip()
-    ia_ic_Data['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = ia_ic_Data[
-        'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.replace(r'\n+', '\n', regex=True)
+    # Concatenate Intervention Channels and Reach tab updates
+    ia_ic_data = concat_updates(ia_ic_data,
+                                concat_col='INTERVENTION CHANNELS AND REACH TAB UPDATES',
+                                update_cols=['IC UPDATE1',
+                                             'IC UPDATE2',
+                                             'IC UPDATE3',
+                                             'IC UPDATE4',
+                                             'IC UPDATE5',
+                                             'IC UPDATE6'])
 
     # Subset records that require updates
-    IA_Corrections = ia_ic_Data.loc[ia_ic_Data.filter(like='UPDATE').notnull().any(1)]
-    IC_Updates = ia_ic_Data.columns[ia_ic_Data.columns.str.contains('IC')].tolist()
-    IA_Corrections = drop_child_dupes(IA_Corrections, IC_Updates, 'activity_id', 'channel_id')
-    # IA_Corrections is exported in the Corrections Report
-    IA_Corrections_Cols = ['activity_id',
-                           'title',
-                           'reported_by',
-                           'reported_by_email',
-                           'unit',
-                           'CUSTOM DATA TAB UPDATES',
-                           'type',
-                           'INTERVENTION CHANNELS AND REACH TAB UPDATES',
-                           'channel_id',
-                           'channel',
-                           'description',
-                           'site_name',
-                           'newly_reached',
-                           'reach']
-    IA_Corrections2 = IA_Corrections[IA_Corrections_Cols].set_index('activity_id')
-    IA_Corrections2['newly_reached'] = pd.to_numeric(IA_Corrections2['newly_reached'], downcast='integer')
-    IA_Corrections2['channel_id'] = pd.to_numeric(IA_Corrections2['channel_id'], downcast='integer')
-    IA_Corrections2 = IA_Corrections2.fillna('')
-    IA_Corrections2['INTERVENTION CHANNELS AND REACH TAB UPDATES'] = IA_Corrections2[
-        'INTERVENTION CHANNELS AND REACH TAB UPDATES'].str.replace('\n', ' ')
-    # IA_Corrections2 is used in the update notification email body
+    ia_corrections = ia_ic_data.loc[ia_ic_data.filter(like='UPDATE').notnull().any(1)]
+    ia_corrections = drop_child_dupes(ia_corrections,
+                                      c_updates=ia_ic_data.columns[ia_ic_data.columns.str.contains('IC')].tolist(),
+                                      parent_id='activity_id',
+                                      child_id='channel_id')
+    # ia_corrections is exported in the Corrections Report
+
+    # Reformat ia_corrections for the update notification email body
+    ia_corrections_email = corrections_email_format(ia_corrections,
+                                                    cols=['activity_id',
+                                                          'title',
+                                                          'reported_by',
+                                                          'reported_by_email',
+                                                          'unit',
+                                                          'CUSTOM DATA TAB UPDATES',
+                                                          'type',
+                                                          'INTERVENTION CHANNELS AND REACH TAB UPDATES',
+                                                          'channel_id',
+                                                          'channel',
+                                                          'description',
+                                                          'site_name',
+                                                          'newly_reached',
+                                                          'reach'],
+                                                    index='activity_id',
+                                                    int_cols=['newly_reached', 'channel_id'],
+                                                    update_cols=['INTERVENTION CHANNELS AND REACH TAB UPDATES'])
 
     # Partnerships
 
@@ -899,7 +902,7 @@ def main(creds,
 
     # Summarize and concatenate module corrections
     Coa_Sum = corrections_sum(coa_corrections, 'Coalitions')
-    IA_Sum = corrections_sum(IA_Corrections, 'Indirect Activities')
+    IA_Sum = corrections_sum(ia_corrections, 'Indirect Activities')
     Part_Sum = corrections_sum(Part_Corrections, 'Partnerships')
     PA_Sum = corrections_sum(PA_Corrections, 'Program Activities')
     PSE_Sum = corrections_sum(PSE_Corrections, 'PSE Site Activities')
@@ -919,7 +922,7 @@ def main(creds,
 
     dfs = {'Corrections Summary': Corrections_Sum,
            'Coalitions': coa_corrections,
-           'Indirect Activities': IA_Corrections,
+           'Indirect Activities': ia_corrections,
            'Partnerships': Part_Corrections,
            'Program Activities': PA_Corrections,
            'PSE': PSE_Corrections}
@@ -980,7 +983,7 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [coa_corrections_email, IA_Corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
+        Module_Corrections2 = [coa_corrections_email, ia_corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
         notify_staff = pd.DataFrame()
 
         for df in Module_Corrections2:
@@ -1005,7 +1008,7 @@ def main(creds,
         for x in current_staff:
 
             Coa_df = staff_corrections(coa_corrections_email, former=False, staff_email=x[1])
-            IA_df = staff_corrections(IA_Corrections2, former=False, staff_email=x[1])
+            IA_df = staff_corrections(ia_corrections2, former=False, staff_email=x[1])
             Part_df = staff_corrections(Part_Corrections2, former=False, staff_email=x[1])
             PA_df = staff_corrections(PA_Corrections2, former=False, staff_email=x[1])
             PSE_df = staff_corrections(PSE_Corrections2, former=False, staff_email=x[1])
@@ -1067,7 +1070,7 @@ def main(creds,
         former_staff = notify_staff.loc[~notify_staff['reported_by_email'].isin(staff['email'])]
 
         Coa_df = staff_corrections(coa_corrections_email)
-        IA_df = staff_corrections(IA_Corrections2)
+        IA_df = staff_corrections(ia_corrections2)
         Part_df = staff_corrections(Part_Corrections2)
         PA_df = staff_corrections(PA_Corrections2)
         PSE_df = staff_corrections(PSE_Corrections2)
