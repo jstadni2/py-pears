@@ -82,7 +82,12 @@ def concat_updates(data, concat_col, update_cols):
 # update_cols: update columns that will have newlines replaced with spaces
 # date_cols: datetime columns to convert to strings in '%m-%d-%Y' format
 # datetime_cols: datetime columns to convert to strings in '%m-%d-%Y %r' format
-def corrections_email_format(corrections, cols, index, int_cols, rename_cols, update_cols, date_cols, datetime_cols):
+def corrections_email_format(corrections, cols, index,
+                             int_cols=None,
+                             rename_cols=None,
+                             update_cols=None,
+                             date_cols=None,
+                             datetime_cols=None):
     email_corrections = corrections.copy()
     email_corrections = email_corrections[cols].set_index(index)
 
@@ -93,8 +98,9 @@ def corrections_email_format(corrections, cols, index, int_cols, rename_cols, up
     if rename_cols:
         email_corrections = email_corrections.rename(columns=rename_cols)
 
-    for update_col in update_cols:
-        email_corrections[update_col] = email_corrections[update_col].str.replace('\n', ' ')
+    if update_cols:
+        for update_col in update_cols:
+            email_corrections[update_col] = email_corrections[update_col].str.replace('\n', ' ')
 
     if date_cols:
         for date_col in date_cols:
@@ -568,54 +574,62 @@ def main(creds,
     part_corrections = part_data.loc[part_data.filter(like='UPDATE').notnull().any(1)]
     # part_corrections is exported in the Corrections Report
 
-    # Reformat coa_corrections for the update notification email body
-    part_corrections = corrections_email_format(part_corrections,
-                                                cols= ['partnership_id',
-                                                       'partnership_name',
-                                                       'reported_by',
-                                                       'reported_by_email',
-                                                       'partnership_unit',
-                                                       'GENERAL INFORMATION TAB UPDATES',
-                                                       'action_plan_name',
-                                                       'program_area',
-                                                       'CUSTOM DATA TAB UPDATES',
-                                                       'EVALUATION TAB UPDATES',
-                                                       'relationship_depth'],
-                                                index='partnership_id',
-                                                rename_cols={'partnership_unit': 'unit'},
-                                                update_cols=['GENERAL INFORMATION TAB UPDATES'])
+    # Reformat part_corrections for the update notification email body
+    part_corrections_email = corrections_email_format(part_corrections,
+                                                      cols=['partnership_id',
+                                                            'partnership_name',
+                                                            'reported_by',
+                                                            'reported_by_email',
+                                                            'partnership_unit',
+                                                            'GENERAL INFORMATION TAB UPDATES',
+                                                            'action_plan_name',
+                                                            'program_area',
+                                                            'CUSTOM DATA TAB UPDATES',
+                                                            'EVALUATION TAB UPDATES',
+                                                            'relationship_depth'],
+                                                      index='partnership_id',
+                                                      rename_cols={'partnership_unit': 'unit'},
+                                                      update_cols=['GENERAL INFORMATION TAB UPDATES'])
 
     # Program Activities
 
     # Set Program Activities data cleaning flags
 
     # Select relevant columns
-    pa_sessions = pa_sessions.loc[:,
-                  ['session_id', 'program_id', 'start_date', 'start_date_with_time', 'length', 'num_participants']]
+    pa_sessions = pa_sessions.loc[:, ['session_id',
+                                      'program_id',
+                                      'start_date',
+                                      'start_date_with_time',
+                                      'length',
+                                      'num_participants']]
 
     pa_sessions['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
     pa_sessions['GI UPDATE1'] = np.nan
     pa_sessions['start_date'] = pd.to_datetime(pa_sessions['start_date'])
     pa_sessions.loc[(pa_sessions['start_date'] < report_year_start) | (pa_sessions['start_date'] > report_year_end),
-                    'GI UPDATE1'] = 'Please enter a session Start Date within 10/01/2021 to 09/30/2022.'
+                    'GI UPDATE1'] = get_update_note(update_notes, module='Program Activities', update='GI UPDATE1')
 
     pa_sessions['GI UPDATE2'] = np.nan
-    pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts) & (
-        pa_sessions['num_participants'].isnull()), 'GI UPDATE2'] = 'Please enter the number of participants.'
-    pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts) & (
-            pa_sessions['num_participants'] == 0), 'GI UPDATE2'] = 'Please delete sessions with 0 participants.'
+    pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts)
+                    & (pa_sessions['num_participants'].isnull()),
+                    'GI UPDATE2'] = get_update_note(update_notes,
+                                                    module='Program Activities',
+                                                    update='GI UPDATE2',
+                                                    notification='Notification1')
+    pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts)
+                    & (pa_sessions['num_participants'] == 0),
+                    'GI UPDATE2'] = get_update_note(update_notes,
+                                                    module='Program Activities',
+                                                    update='GI UPDATE2',
+                                                    notification='Notification2')
 
     pa_sessions['GI UPDATE3'] = np.nan
-    pa_sessions.loc[pa_sessions.duplicated(subset=['program_id', 'start_date_with_time'],
-                                           keep=False), 'GI UPDATE3'] = 'Please remove duplicate Sessions.'
+    pa_sessions.loc[pa_sessions.duplicated(subset=['program_id', 'start_date_with_time'], keep=False),
+                    'GI UPDATE3'] = get_update_note(update_notes, module='Program Activities', update='GI UPDATE3')
 
     # Convert counties to units for use in update notification email
-    pa_data['unit'] = pa_data['unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
-    pa_data = pd.merge(pa_data, unit_counties, how='left', left_on='unit', right_on='County')
-    pa_data.loc[
-        (~pa_data['unit'].isin(unit_counties['Unit #'])) & (pa_data['unit'].isin(unit_counties['County'])), 'unit'] = \
-    pa_data['Unit #']
+    pa_data = counties_to_units(data=pa_data, unit_field='unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     pa_data = pa_data.loc[(~pa_data['name'].str.contains('(?i)TEST', regex=True))
@@ -639,106 +653,119 @@ def main(creds,
                            'snap_ed_special_projects']]
 
     # Subsequent updates require Program Activity data
-    pa_sessions_Data = pd.merge(pa_data, pa_sessions, how='left', on='program_id', suffixes=('_PA', '_Session'))
+    pa_sessions_data = pd.merge(pa_data, pa_sessions, how='left', on='program_id', suffixes=('_PA', '_Session'))
 
-    pa_sessions_Data['GI UPDATE4'] = np.nan
-    pa_sessions_Data.loc[(pa_sessions_Data['length'] < 20) | (
-        pa_sessions_Data['length'].isnull()), 'GI UPDATE4'] = 'Please enter a Session Length of 20 mins or longer.'
+    pa_sessions_data['GI UPDATE4'] = np.nan
+    pa_sessions_data.loc[(pa_sessions_data['length'] < 20) | (pa_sessions_data['length'].isnull()),
+                         'GI UPDATE4'] = get_update_note(update_notes, module='Program Activities', update='GI UPDATE4')
 
     # Concatenate General Information tab updates
-    pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'] = (pa_sessions_Data['GI UPDATE1'].fillna('') +
-                                                           '\n' + pa_sessions_Data['GI UPDATE2'].fillna('') +
-                                                           '\n' + pa_sessions_Data['GI UPDATE3'].fillna('') +
-                                                           '\n' + pa_sessions_Data['GI UPDATE4'].fillna(''))
-    pa_sessions_Data.loc[
-        pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'] = pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.strip()
-    pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'] = pa_sessions_Data['GENERAL INFORMATION TAB UPDATES'].str.replace(
-        r'\n+', '\n', regex=True)
+    pa_sessions_data = concat_updates(pa_sessions_data,
+                                      concat_col='GENERAL INFORMATION TAB UPDATES',
+                                      update_cols=['GI UPDATE1', 'GI UPDATE2', 'GI UPDATE3', 'GI UPDATE4'])
 
-    pa_sessions_Data['CUSTOM DATA TAB UPDATES'] = np.nan
-    pa_sessions_Data.loc[pa_sessions_Data[
-                             'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
-    pa_sessions_Data.loc[(pa_sessions_Data['snap_ed_special_projects'].str.contains('None'))
-                         & (pa_sessions_Data[
-                                'snap_ed_special_projects'] != 'None'), 'CUSTOM DATA TAB UPDATES'] = 'Please remove \'None\' from Special Projects.'
+    pa_sessions_data['CUSTOM DATA TAB UPDATES'] = np.nan
+    pa_sessions_data.loc[pa_sessions_data['snap_ed_grant_goals'].isnull(),
+                         'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                                      module='Program Activities',
+                                                                      update='CUSTOM DATA TAB UPDATES',
+                                                                      notification='Notification1')
+    pa_sessions_data.loc[(pa_sessions_data['snap_ed_special_projects'].str.contains('None'))
+                         & (pa_sessions_data['snap_ed_special_projects'] != 'None'),
+                         'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                                      module='Program Activities',
+                                                                      update='CUSTOM DATA TAB UPDATES',
+                                                                      notification='Notification2')
 
-    pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
+    pa_sessions_data['SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
 
-    pa_sessions_Data['SCD UPDATE1'] = np.nan
-    pa_sessions_Data.loc[pa_sessions_Data[
-                             'intervention'].isnull(), 'SCD UPDATE1'] = 'Please complete the SNAP-Ed Custom Data tab for this entry.'
-    pa_sessions_Data.loc[pa_sessions_Data['intervention'] != 'SNAP-Ed Community Network',
-                         'SCD UPDATE1'] = 'Please select \'SNAP-Ed Community Network\' for the Intervention Name.'
+    pa_sessions_data['SCD UPDATE1'] = np.nan
+    pa_sessions_data.loc[pa_sessions_data['intervention'].isnull(),
+                         'SCD UPDATE1'] = get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='SCD UPDATE1',
+                                                          notification='Notification1')
+    pa_sessions_data.loc[pa_sessions_data['intervention'] != 'SNAP-Ed Community Network',
+                         'SCD UPDATE1'] = get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='SCD UPDATE1',
+                                                          notification='Notification2')
 
-    pa_sessions_Data['SCD UPDATE2'] = np.nan
+    pa_sessions_data['SCD UPDATE2'] = np.nan
     settings_other = ['Other places people', 'Other settings people']
-    pa_sessions_Data.loc[pa_sessions_Data['setting'].str.contains('|'.join(settings_other),
-                                                                  na=False), 'SCD UPDATE2'] = 'Please select a Setting besides \'Other\'.'
+    pa_sessions_data.loc[pa_sessions_data['setting'].str.contains('|'.join(settings_other), na=False),
+                         'SCD UPDATE2'] = get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='SCD UPDATE2')
 
-    pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = pa_sessions_Data['SCD UPDATE1'].fillna('') + '\n' + \
-                                                          pa_sessions_Data['SCD UPDATE2'].fillna('')
-    pa_sessions_Data.loc[
-        pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'].str.isspace(), 'SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
-    pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'] = pa_sessions_Data['SNAP-ED CUSTOM DATA TAB UPDATES'].str.strip()
+    # Concatenate Snap-Ed Custom Data tab updates
+    pa_sessions_data = concat_updates(pa_sessions_data,
+                                      concat_col='SNAP-ED CUSTOM DATA TAB UPDATES',
+                                      update_cols=['SCD UPDATE1', 'SCD UPDATE2'])
 
     # Flag Program Activities where the unique participants is equal to the sum of session participants
-    pa_sessions_Data['DEMOGRAPHICS TAB UPDATES'] = np.nan
-    pa_sessions_Metrics = pa_sessions.groupby('program_id').agg({'session_id': 'count',
-                                                                 'num_participants': 'sum'}).reset_index().rename(
+    pa_sessions_data['DEMOGRAPHICS TAB UPDATES'] = np.nan
+    pa_sessions_metrics = pa_sessions.groupby('program_id').agg(
+        {'session_id': 'count',
+         'num_participants': 'sum'}).reset_index().rename(
         columns={'session_id': '# of Sessions',
                  'num_participants': 'Total Session Participants'})
-    pa_sessions_Data = pd.merge(pa_sessions_Data, pa_sessions_Metrics, how='left', on='program_id')
-    pa_sessions_Data.loc[(pa_sessions_Data['# of Sessions'] > 1) &
-                         (pa_sessions_Data['Total Session Participants'] == pa_sessions_Data['participants_total']),
-                         'DEMOGRAPHICS TAB UPDATES'] = 'Total number of unique participants should not equal total session participants. Please enter total unique participants according to the Cheat Sheet. If each session had brand new people, please enter these as individual program activity entries.'
-    # End of year: For entries with only 1 session, the total # of session participants should = total # of unique participants.
+    pa_sessions_data = pd.merge(pa_sessions_data, pa_sessions_metrics, how='left', on='program_id')
+    pa_sessions_data.loc[(pa_sessions_data['# of Sessions'] > 1) &
+                         (pa_sessions_data['Total Session Participants'] == pa_sessions_data['participants_total']),
+                         'DEMOGRAPHICS TAB UPDATES'] = get_update_note(update_notes,
+                                                                       module='Program Activities',
+                                                                       update='DEMOGRAPHICS TAB UPDATES')
+    # End of year:
+    # For entries with only 1 session, the total # of session participants should = total # of unique participants.
 
     # Data clean FCS Program Activities
     pa_data_fcs['CUSTOM DATA TAB UPDATES'] = np.nan
     pa_data_fcs.loc[(pa_data_fcs['fcs_program_team'].str.contains('SNAP-Ed'))
-                    & (pa_data_fcs[
-                           'fcs_grant_goals'].isnull()), 'CUSTOM DATA TAB UPDATES'] = 'Please enter the IL SNAP-Ed Grant Goals for this entry.'
+                    & (pa_data_fcs['fcs_grant_goals'].isnull()),
+                    'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                                 module='Program Activities',
+                                                                 update='CUSTOM DATA TAB UPDATES')
 
     # Append FCS Program Activities to SNAP-Ed Program Activities
-    add_cols = pa_sessions_Data.columns[~pa_sessions_Data.columns.isin(pa_data_fcs.columns)].tolist()
+    add_cols = pa_sessions_data.columns[~pa_sessions_data.columns.isin(pa_data_fcs.columns)].tolist()
     pa_data_fcs = pd.concat([pa_data_fcs, pd.DataFrame(columns=add_cols)])  # turns program_id into float
     pa_data_fcs['program_id'] = pa_data_fcs['program_id'].astype(int)
-    sub_cols = pa_sessions_Data.columns[pa_sessions_Data.columns.isin(pa_data_fcs.columns)].tolist()
-    pa_sessions_Data = pa_sessions_Data.append(pa_data_fcs[sub_cols], ignore_index=True)
+    sub_cols = pa_sessions_data.columns[pa_sessions_data.columns.isin(pa_data_fcs.columns)].tolist()
+    pa_sessions_data = pa_sessions_data.append(pa_data_fcs[sub_cols], ignore_index=True)
     # possible dupes added?
 
     # Subset records that require updates
-    PA_Corrections = pa_sessions_Data.loc[pa_sessions_Data.filter(like='UPDATE').notnull().any(1)]
-    session_updates = ['GI UPDATE1', 'GI UPDATE2', 'GI UPDATE4']
-    PA_Corrections = drop_child_dupes(PA_Corrections, session_updates, 'program_id', 'session_id')
-    # PA_Corrections is exported in the Corrections Report
-    PA_Corrections_Cols = ['program_id',
-                           'name',
-                           'reported_by',
-                           'reported_by_email',
-                           'unit',
-                           'GENERAL INFORMATION TAB UPDATES',
-                           'session_id',
-                           'start_date_with_time',
-                           'length',
-                           'num_participants',
-                           'CUSTOM DATA TAB UPDATES',
-                           'SNAP-ED CUSTOM DATA TAB UPDATES',
-                           'intervention',
-                           'setting',
-                           'DEMOGRAPHICS TAB UPDATES',
-                           'primary_curriculum']
-    PA_Corrections2 = PA_Corrections[PA_Corrections_Cols].set_index('program_id')
-    PA_Corrections2['num_participants'] = pd.to_numeric(PA_Corrections2['num_participants'], downcast='integer')
-    PA_Corrections2 = PA_Corrections2.fillna('')
-    PA_Corrections2['GENERAL INFORMATION TAB UPDATES'] = PA_Corrections2['GENERAL INFORMATION TAB UPDATES'].str.replace(
-        '\n', ' ')
-    PA_Corrections2['SNAP-ED CUSTOM DATA TAB UPDATES'] = PA_Corrections2['SNAP-ED CUSTOM DATA TAB UPDATES'].str.replace(
-        '\n', ' ')
-    PA_Corrections2['start_date_with_time'] = pd.to_datetime(PA_Corrections2['start_date_with_time']).dt.strftime(
-        '%m-%d-%Y %r').fillna('')
-    # PA_Corrections2 is used in the update notification email body
+    pa_corrections = pa_sessions_data.loc[pa_sessions_data.filter(like='UPDATE').notnull().any(1)]
+    pa_corrections = drop_child_dupes(pa_corrections,
+                                      c_updates=['GI UPDATE1', 'GI UPDATE2', 'GI UPDATE4'],
+                                      parent_id='program_id',
+                                      child_id='session_id')
+    # pa_corrections is exported in the Corrections Report
+
+    # Reformat pa_corrections for the update notification email body
+    pa_corrections_email = corrections_email_format(pa_corrections,
+                                                    cols=['program_id',
+                                                          'name',
+                                                          'reported_by',
+                                                          'reported_by_email',
+                                                          'unit',
+                                                          'GENERAL INFORMATION TAB UPDATES',
+                                                          'session_id',
+                                                          'start_date_with_time',
+                                                          'length',
+                                                          'num_participants',
+                                                          'CUSTOM DATA TAB UPDATES',
+                                                          'SNAP-ED CUSTOM DATA TAB UPDATES',
+                                                          'intervention',
+                                                          'setting',
+                                                          'DEMOGRAPHICS TAB UPDATES',
+                                                          'primary_curriculum'],
+                                                    index='program_id',
+                                                    int_cols=['num_participants'],
+                                                    update_cols=['GENERAL INFORMATION TAB UPDATES',
+                                                                 'SNAP-ED CUSTOM DATA TAB UPDATES'],
+                                                    datetime_cols=['start_date_with_time'])
 
     # PSE Site Activities
 
@@ -903,7 +930,7 @@ def main(creds,
     Coa_Sum = corrections_sum(coa_corrections, 'Coalitions')
     IA_Sum = corrections_sum(ia_corrections, 'Indirect Activities')
     Part_Sum = corrections_sum(part_corrections, 'Partnerships')
-    PA_Sum = corrections_sum(PA_Corrections, 'Program Activities')
+    PA_Sum = corrections_sum(pa_corrections, 'Program Activities')
     PSE_Sum = corrections_sum(PSE_Corrections, 'PSE Site Activities')
     Module_Sums = [Coa_Sum, IA_Sum, Part_Sum, PA_Sum, PSE_Sum]
 
@@ -923,7 +950,7 @@ def main(creds,
            'Coalitions': coa_corrections,
            'Indirect Activities': ia_corrections,
            'Partnerships': part_corrections,
-           'Program Activities': PA_Corrections,
+           'Program Activities': pa_corrections,
            'PSE': PSE_Corrections}
 
     # Create function for write_corrections_report
@@ -982,7 +1009,7 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [coa_corrections_email, ia_corrections_email, part_corrections2, PA_Corrections2, PSE_Corrections2]
+        Module_Corrections2 = [coa_corrections_email, ia_corrections_email, part_corrections_email, pa_corrections_email, PSE_Corrections2]
         notify_staff = pd.DataFrame()
 
         for df in Module_Corrections2:
@@ -1008,8 +1035,8 @@ def main(creds,
 
             Coa_df = staff_corrections(coa_corrections_email, former=False, staff_email=x[1])
             IA_df = staff_corrections(ia_corrections_email, former=False, staff_email=x[1])
-            Part_df = staff_corrections(part_corrections2, former=False, staff_email=x[1])
-            PA_df = staff_corrections(PA_Corrections2, former=False, staff_email=x[1])
+            Part_df = staff_corrections(part_corrections_email, former=False, staff_email=x[1])
+            PA_df = staff_corrections(pa_corrections_email, former=False, staff_email=x[1])
             PSE_df = staff_corrections(PSE_Corrections2, former=False, staff_email=x[1])
 
             staff_name = x[0]
@@ -1070,8 +1097,8 @@ def main(creds,
 
         Coa_df = staff_corrections(coa_corrections_email)
         IA_df = staff_corrections(ia_corrections_email)
-        Part_df = staff_corrections(part_corrections2)
-        PA_df = staff_corrections(PA_Corrections2)
+        Part_df = staff_corrections(part_corrections_email)
+        PA_df = staff_corrections(pa_corrections_email)
         PSE_df = staff_corrections(PSE_Corrections2)
 
         # Export former staff corrections as an Excel file
