@@ -770,16 +770,13 @@ def main(creds,
     # PSE Site Activities
 
     # Convert counties to units for use in update notification email
-    pse_data['pse_unit'] = pse_data['pse_unit'].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']), '',
-                                                            regex=True)
-    pse_data = pd.merge(pse_data, unit_counties, how='left', left_on='pse_unit', right_on='County')
-    pse_data.loc[(~pse_data['pse_unit'].isin(unit_counties['Unit #'])) & (
-        pse_data['pse_unit'].isin(unit_counties['County'])), 'pse_unit'] = pse_data['Unit #']
+    pse_data = counties_to_units(data=pse_data, unit_field='pse_unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     pse_data['name'] = pse_data['name'].astype(str)
     pse_data = pse_data.loc[
-        (~pse_data['name'].str.contains('(?i)TEST', regex=True, na=False)) & (pse_data['site_name'] != 'abc placeholder'),
+        (~pse_data['name'].str.contains('(?i)TEST', regex=True, na=False))
+        & (pse_data['site_name'] != 'abc placeholder'),
         ['pse_id',
          'site_id',
          'site_name',
@@ -804,34 +801,31 @@ def main(creds,
     pse_data['GI UPDATE1'] = np.nan
     pse_data.loc[(pse_data['start_fiscal_year'] != 2022) & (
             pse_data['planning_stage_sites_contacted_and_agreed_to_participate'] == 1),
-                 'GI UPDATE1'] = 'Only sites who agreed to partner for the first time in FY22 should have \'Sites contacted and agreed to participate\' selected.'
+                 'GI UPDATE1'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE1')
 
     pse_data['GI UPDATE2'] = np.nan
     pse_data.loc[pse_data['program_area'] == 'Family Consumer Science',
-                 'GI UPDATE2'] = 'Please create a new PSE Site Activity for this record with Program Area set to "SNAP-Ed" and delete this entry.'
+                 'GI UPDATE2'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE2')
 
     pse_data['GI UPDATE3'] = np.nan
     pse_data.loc[(pse_data['site_id'].duplicated(keep=False))
-                 & (pse_data[
-                        'pse_unit'] != 'CPHP'), 'GI UPDATE3'] = 'Please remove duplicate PSE Site Activity entries for the same site.'
+                 & (pse_data['pse_unit'] != 'CPHP'),
+                 'GI UPDATE3'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE3')
 
     pse_data['GI UPDATE4'] = np.nan
-    pse_data.loc[pse_data[
-                     'intervention'] != 'SNAP-Ed Community Network', 'GI UPDATE4'] = 'Please select \'SNAP-Ed Community Network\' for the Intervention Name.'
+    pse_data.loc[pse_data['intervention'] != 'SNAP-Ed Community Network',
+                 'GI UPDATE4'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE4')
 
     # Concatenate General Information tab updates
-    pse_data['GENERAL INFORMATION TAB UPDATES'] = (pse_data['GI UPDATE1'].fillna('') +
-                                                   '\n' + pse_data['GI UPDATE2'].fillna('') +
-                                                   '\n' + pse_data['GI UPDATE3'].fillna('') +
-                                                   '\n' + pse_data['GI UPDATE4'].fillna(''))
-    pse_data.loc[pse_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    pse_data['GENERAL INFORMATION TAB UPDATES'] = pse_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
-    pse_data['GENERAL INFORMATION TAB UPDATES'] = pse_data['GENERAL INFORMATION TAB UPDATES'].str.replace(r'\n+', '\n',
-                                                                                                          regex=True)
+    pse_data = concat_updates(pse_data,
+                              concat_col='GENERAL INFORMATION TAB UPDATES',
+                              update_cols=['GI UPDATE1', 'GI UPDATE2', 'GI UPDATE3', 'GI UPDATE4'])
 
     pse_data['CUSTOM DATA TAB UPDATES'] = np.nan
-    pse_data.loc[pse_data[
-                     'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
+    pse_data.loc[pse_data['snap_ed_grant_goals'].isnull(),
+                 'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                              module='PSE Site Activities',
+                                                              update='CUSTOM DATA TAB UPDATES')
 
     # Select relevant Needs, Readiness, Effectiveness columns
     pse_nre = pse_nre.loc[:,
@@ -839,90 +833,81 @@ def main(creds,
                'follow_up_date', 'follow_up_score']]
 
     # Subsequent updates require Needs, Readiness, Effectiveness data
-    pse_nre_Data = pd.merge(pse_data, pse_nre, how='left', on='pse_id')
+    pse_nre_data = pd.merge(pse_data, pse_nre, how='left', on='pse_id')
 
-    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = np.nan
+    pse_nre_data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = np.nan
 
-    pse_nre_Data['NRE UPDATE1'] = np.nan
-    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (pse_nre_Data['baseline_score'].isnull()) &
-                     (~pse_nre_Data['assessment_tool'].str.contains('SLAQ',
-                                                                    na=False)), 'NRE UPDATE1'] = 'Please enter the Assessment Score according to the Cheat Sheet.'
+    pse_nre_data['NRE UPDATE1'] = np.nan
+    pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
+                     & (pse_nre_data['baseline_score'].isnull())
+                     & (~pse_nre_data['assessment_tool'].str.contains('SLAQ', na=False)),
+                     'NRE UPDATE1'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE1')
 
-    pse_nre_Data['NRE UPDATE2'] = np.nan
-    pse_nre_Data['baseline_date'] = pd.to_datetime(pse_nre_Data['baseline_date'])
-    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (pse_nre_Data[
-                          'baseline_date'].isnull()), 'NRE UPDATE2'] = 'Please enter a Baseline Date even if pre-assessment was conducted in a previous reporting year.'
+    pse_nre_data['NRE UPDATE2'] = np.nan
+    pse_nre_data['baseline_date'] = pd.to_datetime(pse_nre_data['baseline_date'])
+    pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
+                     & (pse_nre_data['baseline_date'].isnull()),
+                     'NRE UPDATE2'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE2')
 
-    pse_nre_Data['NRE UPDATE3'] = np.nan
-    pse_nre_Data['follow_up_date'] = pd.to_datetime(pse_nre_Data['follow_up_date'])
-    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (pse_nre_Data['follow_up_date'].notnull()) &
-                     (pse_nre_Data[
-                          'follow_up_score'].isnull()), 'NRE UPDATE3'] = 'Please enter the Follow Up Assessment Score according to the Cheat Sheet.'
+    pse_nre_data['NRE UPDATE3'] = np.nan
+    pse_nre_data['follow_up_date'] = pd.to_datetime(pse_nre_data['follow_up_date'])
+    pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
+                     & (pse_nre_data['follow_up_date'].notnull())
+                     & (pse_nre_data['follow_up_score'].isnull()),
+                     'NRE UPDATE3'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE3')
 
-    pse_nre_Data['NRE UPDATE4'] = np.nan
-    pse_nre_Data.loc[(pse_nre_Data['assessment_type'] == 'Needs assessment/environmental scan') &
-                     (pse_nre_Data['follow_up_date'].isnull()) &
-                     (pse_nre_Data[
-                          'follow_up_score'].notnull()), 'NRE UPDATE4'] = 'Please enter the Follow Up Assessment Date.'
+    pse_nre_data['NRE UPDATE4'] = np.nan
+    pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
+                     & (pse_nre_data['follow_up_date'].isnull())
+                     & (pse_nre_data['follow_up_score'].notnull()),
+                     'NRE UPDATE4'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE4')
 
     # Concatenate Needs, Readiness, Effectiveness tab updates
-    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = (pse_nre_Data['NRE UPDATE1'].fillna('') +
-                                                                    '\n' + pse_nre_Data['NRE UPDATE2'].fillna('') +
-                                                                    '\n' + pse_nre_Data['NRE UPDATE3'].fillna('') +
-                                                                    '\n' + pse_nre_Data['NRE UPDATE4'].fillna(''))
-    pse_nre_Data.loc[pse_nre_Data[
-                         'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.isspace(), 'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = np.nan
-    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = pse_nre_Data[
-        'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.strip()
-    pse_nre_Data['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = pse_nre_Data[
-        'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.replace(r'\n+', '\n', regex=True)
+    pse_nre_data = concat_updates(pse_nre_data,
+                                  concat_col='NEEDS, READINESS & EFFECTIVENESS TAB UPDATES',
+                                  update_cols=['NRE UPDATE1', 'NRE UPDATE2', 'NRE UPDATE3', 'NRE UPDATE4'])
 
     # Subsequent updates require Changes Adopted data
-    pse_nre_Changes_Data = pd.merge(pse_nre_Data, pse_changes[['pse_id', 'change_id']], how='left',
+    pse_nre_changes_data = pd.merge(pse_nre_data, pse_changes[['pse_id', 'change_id']], how='left',
                                     on='pse_id').drop_duplicates(subset=['pse_id', 'assessment_id'])
 
-    pse_nre_Changes_Data['CHANGES ADOPTED TAB UPDATES'] = np.nan
-    pse_nre_Changes_Data.loc[(pse_nre_Changes_Data['change_id'].notnull()) & (pse_nre_Changes_Data['total_reach'].isnull()),
-                             'CHANGES ADOPTED TAB UPDATES'] = 'Please enter Total Reach according to the Cheat Sheet.'
+    pse_nre_changes_data['CHANGES ADOPTED TAB UPDATES'] = np.nan
+    pse_nre_changes_data.loc[(pse_nre_changes_data['change_id'].notnull())
+                             & (pse_nre_changes_data['total_reach'].isnull()),
+                             'CHANGES ADOPTED TAB UPDATES'] = get_update_note(update_notes,
+                                                                              module='PSE Site Activities',
+                                                                              update='CHANGES ADOPTED TAB UPDATES')
 
     # Subset records that require updates
-    PSE_Corrections = pse_nre_Changes_Data.loc[pse_nre_Changes_Data.filter(like='UPDATE').notnull().any(1)]
-    # PSE_Corrections is exported in the Corrections Report
-    PSE_Corrections_Cols = ['pse_id',
-                            'site_name',
-                            'reported_by',
-                            'reported_by_email',
-                            'pse_unit',
-                            'GENERAL INFORMATION TAB UPDATES',
-                            'start_fiscal_year',
-                            'planning_stage_sites_contacted_and_agreed_to_participate',
-                            'program_area',
-                            'site_id',
-                            'intervention',
-                            'CUSTOM DATA TAB UPDATES',
-                            'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES',
-                            'baseline_score',
-                            'baseline_date',
-                            'follow_up_date',
-                            'follow_up_score',
-                            'CHANGES ADOPTED TAB UPDATES',
-                            'total_reach']
-    PSE_Corrections2 = PSE_Corrections[PSE_Corrections_Cols].set_index('pse_id').rename(
-        columns={'pse_unit': 'unit'}).fillna('')
-    PSE_Corrections2['GENERAL INFORMATION TAB UPDATES'] = PSE_Corrections2['GENERAL INFORMATION TAB UPDATES'].str.replace(
-        '\n', ' ')
-    PSE_Corrections2['NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'] = PSE_Corrections2[
-        'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'].str.replace('\n', ' ')
-    # When run from local Python env, these dates seem to be converted into objects when new dfs are made
-    PSE_Corrections2['baseline_date'] = pd.to_datetime(PSE_Corrections2['baseline_date']).dt.strftime('%m-%d-%Y').fillna('')
-    PSE_Corrections2['follow_up_date'] = pd.to_datetime(PSE_Corrections2['follow_up_date']).dt.strftime('%m-%d-%Y').fillna(
-        '')
+    pse_corrections = pse_nre_changes_data.loc[pse_nre_changes_data.filter(like='UPDATE').notnull().any(1)]
+    # pse_corrections is exported in the Corrections Report
 
-
-    # PSE_Corrections2 is used in the update notification email body
+    # Reformat pse_corrections for the update notification email body
+    pse_corrections_email = corrections_email_format(pse_corrections,
+                                                     cols=['pse_id',
+                                                           'site_name',
+                                                           'reported_by',
+                                                           'reported_by_email',
+                                                           'pse_unit',
+                                                           'GENERAL INFORMATION TAB UPDATES',
+                                                           'start_fiscal_year',
+                                                           'planning_stage_sites_contacted_and_agreed_to_participate',
+                                                           'program_area',
+                                                           'site_id',
+                                                           'intervention',
+                                                           'CUSTOM DATA TAB UPDATES',
+                                                           'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES',
+                                                           'baseline_score',
+                                                           'baseline_date',
+                                                           'follow_up_date',
+                                                           'follow_up_score',
+                                                           'CHANGES ADOPTED TAB UPDATES',
+                                                           'total_reach'],
+                                                     index='pse_id',
+                                                     rename_cols={'pse_unit': 'unit'},
+                                                     update_cols=['GENERAL INFORMATION TAB UPDATES',
+                                                                  'NEEDS, READINESS & EFFECTIVENESS TAB UPDATES'],
+                                                     date_cols=['baseline_date', 'follow_up_date'])
 
     # Corrections Report
 
@@ -931,7 +916,7 @@ def main(creds,
     IA_Sum = corrections_sum(ia_corrections, 'Indirect Activities')
     Part_Sum = corrections_sum(part_corrections, 'Partnerships')
     PA_Sum = corrections_sum(pa_corrections, 'Program Activities')
-    PSE_Sum = corrections_sum(PSE_Corrections, 'PSE Site Activities')
+    PSE_Sum = corrections_sum(pse_corrections, 'PSE Site Activities')
     Module_Sums = [Coa_Sum, IA_Sum, Part_Sum, PA_Sum, PSE_Sum]
 
     Corrections_Sum = pd.concat(Module_Sums, ignore_index=True)
@@ -951,7 +936,7 @@ def main(creds,
            'Indirect Activities': ia_corrections,
            'Partnerships': part_corrections,
            'Program Activities': pa_corrections,
-           'PSE': PSE_Corrections}
+           'PSE': pse_corrections}
 
     # Create function for write_corrections_report
     writer = pd.ExcelWriter(file_path1, engine='xlsxwriter')
@@ -1009,7 +994,7 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [coa_corrections_email, ia_corrections_email, part_corrections_email, pa_corrections_email, PSE_Corrections2]
+        Module_Corrections2 = [coa_corrections_email, ia_corrections_email, part_corrections_email, pa_corrections_email, pse_corrections_email]
         notify_staff = pd.DataFrame()
 
         for df in Module_Corrections2:
@@ -1037,7 +1022,7 @@ def main(creds,
             IA_df = staff_corrections(ia_corrections_email, former=False, staff_email=x[1])
             Part_df = staff_corrections(part_corrections_email, former=False, staff_email=x[1])
             PA_df = staff_corrections(pa_corrections_email, former=False, staff_email=x[1])
-            PSE_df = staff_corrections(PSE_Corrections2, former=False, staff_email=x[1])
+            PSE_df = staff_corrections(pse_corrections_email, former=False, staff_email=x[1])
 
             staff_name = x[0]
             send_to = x[1]
@@ -1099,7 +1084,7 @@ def main(creds,
         IA_df = staff_corrections(ia_corrections_email)
         Part_df = staff_corrections(part_corrections_email)
         PA_df = staff_corrections(pa_corrections_email)
-        PSE_df = staff_corrections(PSE_Corrections2)
+        PSE_df = staff_corrections(pse_corrections_email)
 
         # Export former staff corrections as an Excel file
 
