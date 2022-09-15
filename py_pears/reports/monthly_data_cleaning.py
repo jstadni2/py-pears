@@ -513,11 +513,7 @@ def main(creds,
     # Partnerships
 
     # Convert counties to units for use in update notification email
-    part_data['partnership_unit'] = part_data['partnership_unit'].str.replace(
-        '|'.join([' \(County\)', ' \(District\)', 'Unit ']), '', regex=True)
-    part_data = pd.merge(part_data, unit_counties, how='left', left_on='partnership_unit', right_on='County')
-    part_data.loc[(~part_data['partnership_unit'].isin(unit_counties['Unit #'])) &
-                  (part_data['partnership_unit'].isin(unit_counties['County'])), 'partnership_unit'] = part_data['Unit #']
+    part_data = counties_to_units(data=part_data, unit_field='partnership_unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     part_data = part_data.loc[~part_data['partnership_name'].str.contains('(?i)TEST', regex=True),
@@ -540,51 +536,54 @@ def main(creds,
     part_data['GENERAL INFORMATION TAB UPDATES'] = np.nan
 
     part_data['GI UPDATE1'] = np.nan
-    part_data.loc[part_data[
-                      'action_plan_name'].isnull(), 'GI UPDATE1'] = 'Please enter the Action Plan Name for the current report year.'
+    part_data.loc[part_data['action_plan_name'].isnull(),
+                  'GI UPDATE1'] = get_update_note(update_notes, module='Partnerships', update='GI UPDATE1')
 
     part_data['GI UPDATE2'] = np.nan
     part_data.loc[(part_data['is_direct_education_intervention'] == 0) & (part_data['is_pse_intervention'] == 0),
-                  'GI UPDATE2'] = 'Please select \'Direct Education\' and/or \'Policy, Systems & Environmental Changes\' for this partner\'s intervention types.'
+                  'GI UPDATE2'] = get_update_note(update_notes, module='Partnerships', update='GI UPDATE2')
 
     part_data['GI UPDATE3'] = np.nan
-    part_data.loc[part_data['program_area'] != 'SNAP-Ed', 'GI UPDATE3'] = 'Please select \'SNAP-Ed\' for Program Area.'
+    part_data.loc[part_data['program_area'] != 'SNAP-Ed',
+                  'GI UPDATE3'] = get_update_note(update_notes, module='Partnerships', update='GI UPDATE3')
 
     # Concatenate General Information tab updates
-    part_data['GENERAL INFORMATION TAB UPDATES'] = (part_data['GI UPDATE1'].fillna('') +
-                                                    '\n' + part_data['GI UPDATE2'].fillna('') +
-                                                    '\n' + part_data['GI UPDATE3'].fillna(''))
-    part_data.loc[part_data['GENERAL INFORMATION TAB UPDATES'].str.isspace(), 'GENERAL INFORMATION TAB UPDATES'] = np.nan
-    part_data['GENERAL INFORMATION TAB UPDATES'] = part_data['GENERAL INFORMATION TAB UPDATES'].str.strip()
-    part_data['GENERAL INFORMATION TAB UPDATES'] = part_data['GENERAL INFORMATION TAB UPDATES'].str.replace(r'\n+', '\n',
-                                                                                                            regex=True)
+    part_data = concat_updates(part_data,
+                               concat_col='GENERAL INFORMATION TAB UPDATES',
+                               update_cols=['GI UPDATE1', 'GI UPDATE2', 'GI UPDATE3'])
 
     part_data['CUSTOM DATA TAB UPDATES'] = np.nan
-    part_data.loc[part_data[
-                      'snap_ed_grant_goals'].isnull(), 'CUSTOM DATA TAB UPDATES'] = 'Please complete the Custom Data tab for this entry.'
+    part_data.loc[part_data['snap_ed_grant_goals'].isnull(),
+                  'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
+                                                               module='Partnerships',
+                                                               update='CUSTOM DATA TAB UPDATES')
 
     part_data['EVALUATION TAB UPDATES'] = np.nan
-    part_data.loc[part_data['relationship_depth'].isnull(), 'EVALUATION TAB UPDATES'] = 'Enter the Relationship Depth.'
+    part_data.loc[part_data['relationship_depth'].isnull(),
+                  'EVALUATION TAB UPDATES'] = get_update_note(update_notes,
+                                                              module='Partnerships',
+                                                              update='EVALUATION TAB UPDATES')
 
     # Subset records that require updates
-    Part_Corrections = part_data.loc[part_data.filter(like='UPDATE').notnull().any(1)]
-    # Part_Corrections is exported in the Corrections Report
-    Part_Corrections_Cols = ['partnership_id',
-                             'partnership_name',
-                             'reported_by',
-                             'reported_by_email',
-                             'partnership_unit',
-                             'GENERAL INFORMATION TAB UPDATES',
-                             'action_plan_name',
-                             'program_area',
-                             'CUSTOM DATA TAB UPDATES',
-                             'EVALUATION TAB UPDATES',
-                             'relationship_depth']
-    Part_Corrections2 = Part_Corrections[Part_Corrections_Cols].set_index('partnership_id').rename(
-        columns={'partnership_unit': 'unit'}).fillna('')
-    Part_Corrections2['GENERAL INFORMATION TAB UPDATES'] = Part_Corrections2['GENERAL INFORMATION TAB UPDATES'].str.replace(
-        '\n', ' ')
-    # Part_Corrections2 is used in the update notification email body
+    part_corrections = part_data.loc[part_data.filter(like='UPDATE').notnull().any(1)]
+    # part_corrections is exported in the Corrections Report
+
+    # Reformat coa_corrections for the update notification email body
+    part_corrections = corrections_email_format(part_corrections,
+                                                cols= ['partnership_id',
+                                                       'partnership_name',
+                                                       'reported_by',
+                                                       'reported_by_email',
+                                                       'partnership_unit',
+                                                       'GENERAL INFORMATION TAB UPDATES',
+                                                       'action_plan_name',
+                                                       'program_area',
+                                                       'CUSTOM DATA TAB UPDATES',
+                                                       'EVALUATION TAB UPDATES',
+                                                       'relationship_depth'],
+                                                index='partnership_id',
+                                                rename_cols={'partnership_unit': 'unit'},
+                                                update_cols=['GENERAL INFORMATION TAB UPDATES'])
 
     # Program Activities
 
@@ -903,7 +902,7 @@ def main(creds,
     # Summarize and concatenate module corrections
     Coa_Sum = corrections_sum(coa_corrections, 'Coalitions')
     IA_Sum = corrections_sum(ia_corrections, 'Indirect Activities')
-    Part_Sum = corrections_sum(Part_Corrections, 'Partnerships')
+    Part_Sum = corrections_sum(part_corrections, 'Partnerships')
     PA_Sum = corrections_sum(PA_Corrections, 'Program Activities')
     PSE_Sum = corrections_sum(PSE_Corrections, 'PSE Site Activities')
     Module_Sums = [Coa_Sum, IA_Sum, Part_Sum, PA_Sum, PSE_Sum]
@@ -923,7 +922,7 @@ def main(creds,
     dfs = {'Corrections Summary': Corrections_Sum,
            'Coalitions': coa_corrections,
            'Indirect Activities': ia_corrections,
-           'Partnerships': Part_Corrections,
+           'Partnerships': part_corrections,
            'Program Activities': PA_Corrections,
            'PSE': PSE_Corrections}
 
@@ -983,7 +982,7 @@ def main(creds,
         """
 
         # Create dataframe of staff to notify
-        Module_Corrections2 = [coa_corrections_email, ia_corrections2, Part_Corrections2, PA_Corrections2, PSE_Corrections2]
+        Module_Corrections2 = [coa_corrections_email, ia_corrections_email, part_corrections2, PA_Corrections2, PSE_Corrections2]
         notify_staff = pd.DataFrame()
 
         for df in Module_Corrections2:
@@ -1008,8 +1007,8 @@ def main(creds,
         for x in current_staff:
 
             Coa_df = staff_corrections(coa_corrections_email, former=False, staff_email=x[1])
-            IA_df = staff_corrections(ia_corrections2, former=False, staff_email=x[1])
-            Part_df = staff_corrections(Part_Corrections2, former=False, staff_email=x[1])
+            IA_df = staff_corrections(ia_corrections_email, former=False, staff_email=x[1])
+            Part_df = staff_corrections(part_corrections2, former=False, staff_email=x[1])
             PA_df = staff_corrections(PA_Corrections2, former=False, staff_email=x[1])
             PSE_df = staff_corrections(PSE_Corrections2, former=False, staff_email=x[1])
 
@@ -1070,8 +1069,8 @@ def main(creds,
         former_staff = notify_staff.loc[~notify_staff['reported_by_email'].isin(staff['email'])]
 
         Coa_df = staff_corrections(coa_corrections_email)
-        IA_df = staff_corrections(ia_corrections2)
-        Part_df = staff_corrections(Part_Corrections2)
+        IA_df = staff_corrections(ia_corrections_email)
+        Part_df = staff_corrections(part_corrections2)
         PA_df = staff_corrections(PA_Corrections2)
         PSE_df = staff_corrections(PSE_Corrections2)
 
