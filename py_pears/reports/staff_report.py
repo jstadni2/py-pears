@@ -114,9 +114,8 @@ def compile_report(dfs, agency='Extension'):
         'Created ' + prev_month.strftime('%b-%Y')) & ~report.columns.str.contains('Collaborated ')].sum(axis=1)
     report['Total Entries Modified ' + prev_month.strftime('%b-%Y')] = report.loc[:, report.columns.str.contains(
         'Modified ' + prev_month.strftime('%b-%Y')) & ~report.columns.str.contains('Collaborated ')].sum(axis=1)
-    report['Total Entries Created YTD'] = report.loc[:,
-                                          report.columns.str.contains('Created YTD') & ~report.columns.str.contains(
-                                              'Collaborated ')].sum(axis=1)
+    report['Total Entries Created YTD'] = report.loc[:, report.columns.str.contains('Created YTD')
+                                                        & ~report.columns.str.contains('Collaborated ')].sum(axis=1)
     report['Total Entries Collaborated Created ' + prev_month.strftime('%b-%Y')] = report.loc[:,
                                                                                    report.columns.str.contains(
                                                                                        'Collaborated Created ' + prev_month.strftime( # pass in date string
@@ -189,17 +188,18 @@ def save_staff_report(dfs, file_path, agency='Extension'):
 # output_dir: directory where report outputs are saved
 # staff_list: path to the staff list Excel workbook
 # send_emails: boolean for sending emails associated with this report (default: False)
-# notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
 # report_cc: list-like string of email addresses to cc on the report email
-# report_recipients: list-like string of email addresses for recipients of the report email
+# extension_report_recipients: list-like string of email addresses for recipients of the SNAP-Ed staff report email
+# cphp_report_recipients: list-like string of email addresses for recipients of the CPHP staff report email
+# UPDATE: make main() take a dict/object of implementing agencies and recipients
 def main(creds,
          export_dir,
          output_dir,
          staff_list,
          send_emails=False,
-         notification_cc='',
          report_cc='',
-         report_recipients=''):
+         extension_report_recipients='',
+         cphp_report_recipients=''):
 
     # Download required PEARS exports from S3
     utils.download_s3_exports(profile=creds['aws_profile'],
@@ -331,7 +331,7 @@ def main(creds,
         extension_report_text = extension_report_subject + ' attached.'
 
         utils.send_mail(send_from=creds['admin_send_from'],
-                        send_to='snap_ed_recipient@domain.com',
+                        send_to=extension_report_recipients,
                         cc=report_cc,
                         subject=extension_report_subject,
                         html=extension_report_text,
@@ -348,7 +348,7 @@ def main(creds,
         cphp_report_text = cphp_report_subject + ' attached.'
 
         utils.send_mail(send_from=creds['admin_send_from'],
-                        send_to='cphp_recipient@domain.com',
+                        send_to=cphp_report_recipients,
                         cc=report_cc,
                         subject=cphp_report_subject,
                         html=cphp_report_text,
