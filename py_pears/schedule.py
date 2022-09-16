@@ -3,6 +3,7 @@ import py_pears.utils as utils
 import py_pears.reports.sites_report as sites_report
 import py_pears.reports.staff_report as staff_report
 import py_pears.reports.monthly_data_cleaning as monthly_data_cleaning
+import py_pears.reports.quarterly_program_evaluation as quarterly_program_evaluation
 
 
 # Calculate the path to the root directory of this package
@@ -22,16 +23,19 @@ update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
 creds = utils.load_credentials()
 
 # Run Sites Report with default inputs
-sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
+# sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
+#
+# # Run Staff Report with default inputs
+# staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
+#
+# # Run Monthly Data Cleaning with default inputs
+# monthly_data_cleaning.main(creds=creds,
+#                            export_dir=EXPORT_DIR,
+#                            output_dir=OUT_DIR,
+#                            staff_list=staff_list,
+#                            names_list=names_list,
+#                            unit_counties=unit_counties,
+#                            update_notifications=update_notifications)
 
-# Run Staff Report with default inputs
-staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
-
-# Run Monthly Data Cleaning with default inputs
-monthly_data_cleaning.main(creds=creds,
-                           export_dir=EXPORT_DIR,
-                           output_dir=OUT_DIR,
-                           staff_list=staff_list,
-                           names_list=names_list,
-                           unit_counties=unit_counties,
-                           update_notifications=update_notifications)
+# Run Quarterly Program Evaluation with default inputs
+quarterly_program_evaluation.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
