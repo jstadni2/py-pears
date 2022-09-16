@@ -107,7 +107,24 @@ def reformat(df, labels):
     return reformatted_df
 
 
-# function for reordering comma-separated name
+# Select records from PEARS module export
+# df: dataframe of PEARS module records
+# record_name_field: field label for the record name
+# test_records: boolean, whether to include records with 'test' in the record_name_field (default: False)
+# test_sites: boolean, whether to include records with 'abc placeholder' in 'site_name' field (default: False)
+# columns: list of column labels to subset df by (default: return all columns)
+def select_pears_data(df, record_name_field, test_records=False, test_sites=False, columns=[]):
+    out_df = df.copy()
+    if not test_records:
+        out_df = out_df.loc[~out_df[record_name_field].str.contains('(?i)TEST', regex=True, na=False)]
+    if not test_sites:
+        out_df = out_df.loc[out_df['site_name'] != 'abc placeholder']
+    if columns.empty:  # Refactor?
+        columns = out_df.columns
+    return out_df[columns]
+
+
+    # function for reordering comma-separated name
 # df: dataframe of staff list
 # name_field: column label of name field
 # reordered_name_field: column label of reordered name field
