@@ -252,7 +252,7 @@ def main(creds,
                            'snap_ed_special_projects']
 
     # Import Coalitions data and Coalition Members
-    coalitions_export = pd.ExcelFile(export_dir + '/' + "Coalition_Export.xlsx")
+    coalitions_export = pd.ExcelFile(export_dir + "Coalition_Export.xlsx")
     coa_data = pd.read_excel(coalitions_export, 'Coalition Data')
     coa_data = utils.reformat(coa_data, custom_field_labels)
     # Only data clean records for SNAP-Ed

@@ -111,14 +111,15 @@ def reformat(df, labels):
 # df: dataframe of PEARS module records
 # record_name_field: field label for the record name
 # test_records: boolean, whether to include records with 'test' in the record_name_field (default: False)
-# test_sites: boolean, whether to include records with 'abc placeholder' in 'site_name' field (default: False)
+# exclude_sites: list of strings for sites to exclude from the 'site_name' field (default: ['abc placeholder'])
 # columns: list of column labels to subset df by (default: return all columns)
-def select_pears_data(df, record_name_field, test_records=False, test_sites=False, columns=[]):
+# UPDATE: Add input arg for program_area?
+def select_pears_data(df, record_name_field, test_records=False, exclude_sites=['abc placeholder'], columns=[]):
     out_df = df.copy()
     if not test_records:
         out_df = out_df.loc[~out_df[record_name_field].str.contains('(?i)TEST', regex=True, na=False)]
-    if not test_sites:
-        out_df = out_df.loc[out_df['site_name'] != 'abc placeholder']
+    if 'site_name' in out_df.columns:
+        out_df = out_df.loc[~out_df['site_name'].isin(exclude_sites)]
     if columns.empty:  # Refactor?
         columns = out_df.columns
     return out_df[columns]
