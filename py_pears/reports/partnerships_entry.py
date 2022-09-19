@@ -82,7 +82,7 @@ def main(creds,
     pa_data = utils.select_pears_data(pa_data,
                                       record_name_field='name',
                                       exclude_sites=exclude_sites,
-                                      columns=['id',
+                                      columns=['program_id',
                                                'program_areas',
                                                'comments',
                                                'unit',
@@ -108,7 +108,7 @@ def main(creds,
     pa_data.loc[pa_data['site_id_child'].notnull(), 'site_city'] = pa_data['city']
     pa_data.loc[pa_data['site_id_child'].notnull(), 'site_zip'] = pa_data['zip_code']
     pa_data.loc[pa_data['site_id_child'].notnull(), 'site_state'] = pa_data['state']
-    pa_data = pa_data.drop(columns=pa_data.filter(like='_child').columns)
+    pa_data = pa_data.drop(columns=['site_name_child', 'address', 'city', 'zip_code', 'state'])
 
     ia_ic_data['id'] = 'ia' + ia_ic_data['activity_id'].astype('str')
     ia_ic_data = utils.select_pears_data(ia_ic_data,

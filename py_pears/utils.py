@@ -120,7 +120,7 @@ def select_pears_data(df, record_name_field, test_records=False, exclude_sites=[
         out_df = out_df.loc[~out_df[record_name_field].str.contains('(?i)TEST', regex=True, na=False)]
     if 'site_name' in out_df.columns:
         out_df = out_df.loc[~out_df['site_name'].isin(exclude_sites)]
-    if columns.empty:  # Refactor?
+    if not columns:  # Refactor?
         columns = out_df.columns
     return out_df[columns]
 
