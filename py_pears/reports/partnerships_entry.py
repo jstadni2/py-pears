@@ -38,7 +38,7 @@ def main(creds,
     ia_data = utils.reformat(ia_data, custom_field_labels)
     ia_data = ia_data.loc[ia_data['program_area'] == 'SNAP-Ed']
     ia_ic = pd.read_excel(ia_export, 'Intervention Channels')
-    ia_ic = ia_ic.loc[~ia_ic['activity'].str.contains('(?i)TEST', regex=True)]
+    ia_ic = utils.select_pears_data(ia_ic, record_name_field='activity')
     ia_ic_data = pd.merge(ia_data, ia_ic, how='inner', on='activity_id')
 
     sites = pd.read_excel(export_dir + "Site_Export.xlsx", sheet_name='Site Data')
