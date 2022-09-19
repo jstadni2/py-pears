@@ -125,7 +125,7 @@ def select_pears_data(df, record_name_field, test_records=False, exclude_sites=[
     return out_df[columns]
 
 
-    # function for reordering comma-separated name
+# function for reordering comma-separated name
 # df: dataframe of staff list
 # name_field: column label of name field
 # reordered_name_field: column label of reordered name field
@@ -146,9 +146,10 @@ def reorder_name(df, name_field, reordered_name_field, drop_substr_fields=False)
 # file: string for the name or path of the file
 # sheet_names: list of strings for the name of each sheet
 # dfs: list of dataframes for the report
-# ALTERNATIVELY, INPUT DICT
-def write_report(file, sheet_names, dfs):
-    report_dict = dict(zip(sheet_names, dfs))
+# report_dict: a dict to be used in place of sheet_names and dfs
+def write_report(file, sheet_names=None, dfs=None, report_dict=None):
+    if report_dict is None:
+        report_dict = dict(zip(sheet_names, dfs))
     writer = pd.ExcelWriter(file, engine='xlsxwriter')
     # Loop through dict of dataframes
     for sheet_name, df in report_dict.items():
