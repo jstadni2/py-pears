@@ -166,6 +166,20 @@ def get_update_note(update_notes, module, update, notification='Notification1'):
                             & (update_notes['Update'] == update), notification].item()
 
 
+# Function to calculate total records for each module and update.
+# df: dataframe of module corrections
+# module: string value of module name
+# total: boolean for whether to include a count of total module corrections
+def corrections_sum(df, module, total=True):
+    df_sum = df.count().to_frame(name="# of Entries").reset_index().rename(columns={'index': 'Update'})
+    df_sum = df_sum.loc[df_sum['Update'].str.contains('UPDATE')]
+    if total:
+        df_total = {'Update': 'Total', '# of Entries': len(df)}
+        df_sum = df_sum.append(df_total, ignore_index=True)
+    df_sum['Module'] = module
+    return df_sum
+
+
 # Export a list of dataframes as an Excel workbook
 # file: string for the name or path of the file
 # sheet_names: list of strings for the name of each sheet

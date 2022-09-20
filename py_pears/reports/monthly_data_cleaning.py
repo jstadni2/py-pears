@@ -90,18 +90,6 @@ def corrections_email_format(corrections, cols, index,
     return email_corrections
 
 
-# Function to calculate total records for each module and update.
-# df: dataframe of module corrections
-# module: string value of module name
-def corrections_sum(df, module):
-    df_sum = df.count().to_frame(name="# of Entries").reset_index().rename(columns={'index': 'Update'})
-    df_sum = df_sum.loc[df_sum['Update'].str.contains('UPDATE')]
-    df_total = {'Update': 'Total', '# of Entries': len(df)}
-    df_sum = df_sum.append(df_total, ignore_index=True)
-    df_sum['Module'] = module
-    return df_sum
-
-
 # Export the corrections report as a xlsx
 # report_dict: dict of sheet names to dataframes of corrections data
 # file_path: string for the output directory and filename
@@ -936,7 +924,7 @@ def main(creds,
         'PSE Site Activities': pse_corrections
     }
 
-    module_sums = [corrections_sum(corrections, module) for module, corrections in corrections_dict.items()]
+    module_sums = [utils.corrections_sum(corrections, module) for module, corrections in corrections_dict.items()]
 
     corrections_sums = pd.concat(module_sums, ignore_index=True)
     corrections_sums.insert(0, 'Module', corrections_sums.pop('Module'))
