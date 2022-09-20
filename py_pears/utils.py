@@ -232,6 +232,28 @@ def send_mail(send_from,
     smtp.quit()
 
 
+# Function to subset module corrections for a specific staff member
+# df: dataframe of module corrections
+# former: boolean, True if subsetting corrections for a former staff member
+# staff_email: string for the staff member's email
+def staff_corrections(df, former=True, staff_email='', former_staff=pd.DataFrame()):
+    if former:
+        return df.loc[df['reported_by_email'].isin(former_staff['reported_by_email'])].reset_index()
+    else:
+        return df.loc[df['reported_by_email'] == staff_email].drop(columns=['reported_by', 'reported_by_email', 'unit'])
+
+
+# Function to insert a staff member's corrections into a html email template
+# dfs: dicts of module names to staff members' corrections dataframes for that module
+# strs: list of strings that will be appended to the html email template string
+def insert_dfs(dfs, strs):
+    for heading, df in dfs.items():
+        if df.empty is False:
+            strs.append('<h1> ' + heading + ' </h1>' + df.to_html(border=2, justify='center'))
+        else:
+            strs.append('')
+
+
 # Notify admin of any failed attempts to send an email
 # failed_recipients: string list of recipients who failed to receive an email
 # send_from: string for the sender's email address
