@@ -34,30 +34,6 @@ def drop_child_dupes(df, c_updates, parent_id, child_id):
     return df
 
 
-# Convert county values in the 'unit' field to units
-# data: dataframe of PEARS module data
-# unit_field: string for the label of the unit field (default: 'unit')
-# unit_counties: dataframe of counties mapped to units (default: empty dataframe)
-def counties_to_units(data, unit_field='unit', unit_counties=pd.DataFrame()):
-    out_data = data.copy()
-    out_data[unit_field] = out_data[unit_field].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']),
-                                                            '', regex=True)
-    out_data = pd.merge(out_data, unit_counties, how='left', left_on=unit_field, right_on='County')
-    out_data.loc[(~out_data[unit_field].isin(unit_counties['Unit #'])) &
-                 (out_data[unit_field].isin(unit_counties['County'])), unit_field] = out_data['Unit #']
-    return out_data
-
-
-# Get the update notification
-# update_notes: dataframe of update notification
-# module: string for the PEARS module
-# update: string for the label of the update column
-# notification: string for the desired notification column from update_notes (default: 'Notification1')
-def get_update_note(update_notes, module, update, notification='Notification1'):
-    return update_notes.loc[(update_notes['Module'] == module)
-                            & (update_notes['Update'] == update), notification].item()
-
-
 # Concatenate update columns into a single column of newline-separated update notifications
 # data: dataframe of PEARS module data
 # concat_col: string for the label of the concatenated column
@@ -299,7 +275,7 @@ def main(creds,
     # Coalitions
 
     # Convert counties to units for use in update notification email
-    coa_data = counties_to_units(data=coa_data, unit_field='coalition_unit', unit_counties=unit_counties)
+    coa_data = utils.counties_to_units(data=coa_data, unit_field='coalition_unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     coa_data = coa_data.loc[~coa_data['coalition_name'].str.contains('(?i)TEST', regex=True),
@@ -320,11 +296,11 @@ def main(creds,
 
     coa_data['GI UPDATE1'] = np.nan
     coa_data.loc[coa_data['action_plan_name'].isnull(),
-                 'GI UPDATE1'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
+                 'GI UPDATE1'] = utils.get_update_note(update_notes, module='Coalitions', update='GI UPDATE1')
 
     coa_data['GI UPDATE2'] = np.nan
     coa_data.loc[coa_data['program_area'] != 'SNAP-Ed',
-                 'GI UPDATE2'] = get_update_note(update_notes, module='Coalitions', update='GI UPDATE2')
+                 'GI UPDATE2'] = utils.get_update_note(update_notes, module='Coalitions', update='GI UPDATE2')
 
     # Concatenate General Information tab updates
     coa_data = concat_updates(coa_data,
@@ -333,9 +309,9 @@ def main(creds,
 
     coa_data['CUSTOM DATA TAB UPDATES'] = np.nan
     coa_data.loc[coa_data['snap_ed_grant_goals'].isnull(),
-                 'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                              module='Coalitions',
-                                                              update='CUSTOM DATA TAB UPDATES')
+                 'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                    module='Coalitions',
+                                                                    update='CUSTOM DATA TAB UPDATES')
 
     coa_data['COALITION MEMBERS TAB UPDATES'] = np.nan
 
@@ -344,7 +320,7 @@ def main(creds,
     coa_members_count = coa_members.groupby('coalition_id')['member_id'].count().reset_index(name='# of Members')
     coa_data = pd.merge(coa_data, coa_members_count, how='left', on='coalition_id')
     coa_data.loc[(coa_data['# of Members'].isnull()) | (coa_data['# of Members'] == 0),
-                 'CM UPDATE1'] = get_update_note(update_notes, module='Coalitions', update='CM UPDATE1')
+                 'CM UPDATE1'] = utils.get_update_note(update_notes, module='Coalitions', update='CM UPDATE1')
 
     # Subsequent updates require Members data
     coa_members_data = pd.merge(coa_data, coa_members, how='left', on='coalition_id').rename(
@@ -353,7 +329,7 @@ def main(creds,
     coa_members_data['CM UPDATE2'] = np.nan
     coa_members_data.loc[
         (coa_members_data['type'] != 'Community members/individuals') & (coa_members_data['site_id'].isnull()),
-        'CM UPDATE2'] = get_update_note(update_notes, module='Coalitions', update='CM UPDATE2')
+        'CM UPDATE2'] = utils.get_update_note(update_notes, module='Coalitions', update='CM UPDATE2')
 
     # Flag Coalition Members that contain individuals' names
     coa_members_data['CM UPDATE3'] = np.nan
@@ -363,7 +339,7 @@ def main(creds,
     coa_members_data.loc[(coa_members_data['member_name'].str.contains('|'.join(il_names), na=False)) &
                          (coa_members_data['member_name'].str.count(' ') == 1) &
                          (~coa_members_data['member_name'].str.contains('|'.join(exclude_terms), na=False)),
-                         'CM UPDATE3'] = get_update_note(update_notes, module='Coalitions', update='CM UPDATE3')
+                         'CM UPDATE3'] = utils.get_update_note(update_notes, module='Coalitions', update='CM UPDATE3')
 
     # Concatenate Coalition Members tab updates
     coa_members_data = concat_updates(coa_members_data,
@@ -404,7 +380,7 @@ def main(creds,
     # Set Indirect Activity data cleaning flags
 
     # Convert counties to units for use in update notification email
-    ia_data = counties_to_units(data=ia_data, unit_field='unit', unit_counties=unit_counties)
+    ia_data = utils.counties_to_units(data=ia_data, unit_field='unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     ia_data = ia_data.loc[~ia_data['title'].str.contains('(?i)TEST', regex=True),
@@ -425,15 +401,15 @@ def main(creds,
     ia_data['CUSTOM DATA TAB UPDATES'] = np.nan
 
     ia_data.loc[ia_data.duplicated(subset=['reported_by_email', 'type'], keep=False),
-                'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                             module='Indirect Activities',
-                                                             update='CUSTOM DATA TAB UPDATES',
-                                                             notification='Notification1')
+                'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                   module='Indirect Activities',
+                                                                   update='CUSTOM DATA TAB UPDATES',
+                                                                   notification='Notification1')
     ia_data.loc[ia_data['snap_ed_grant_goals'].isnull(),
-                'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                             module='Indirect Activities',
-                                                             update='CUSTOM DATA TAB UPDATES',
-                                                             notification='Notification2')
+                'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                   module='Indirect Activities',
+                                                                   update='CUSTOM DATA TAB UPDATES',
+                                                                   notification='Notification2')
 
     # Filter out test records, select relevant columns
     ia_ic = ia_ic.loc[~ia_ic['activity'].str.contains('(?i)TEST', regex=True),
@@ -458,35 +434,45 @@ def main(creds,
     ia_ic_data.loc[ia_ic_data['description'] == 'nan', 'description'] = ''
     ia_ic_data.loc[~ia_ic_data['description'].str.contains('|'.join(months)) & ~ia_ic_data['description'].str.contains(
         r'\d+/|-|.{1}\d{2,4}'),
-                   'IC UPDATE1'] = get_update_note(update_notes,
-                                                   module='Indirect Activities',
-                                                   update='IC UPDATE1')
+                   'IC UPDATE1'] = utils.get_update_note(update_notes,
+                                                         module='Indirect Activities',
+                                                         update='IC UPDATE1')
 
     ia_ic_data['IC UPDATE2'] = np.nan
     # ia_ic_data.loc[(ia_ic_data['site_name'].isnull()) | (ia_ic_data['site_name'] == 'abc placeholder'),
-    #                'IC UPDATE2'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE2')
+    #                'IC UPDATE2'] = utils.get_update_note(update_notes,
+    #                module='Indirect Activities',
+    #                update='IC UPDATE2')
     # As of 3/18/22, Indirect Activity site is set to a required field in PEARS for Illinois Extension
 
     ia_ic_data['IC UPDATE3'] = np.nan
     ia_ic_data.loc[(ia_ic_data['newly_reached'].notnull())
                    & (ia_ic_data['newly_reached'] != 0),
-                   'IC UPDATE3'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE3')
+                   'IC UPDATE3'] = utils.get_update_note(update_notes,
+                                                         module='Indirect Activities',
+                                                         update='IC UPDATE3')
 
     ia_ic_data['IC UPDATE4'] = np.nan
     ia_ic_data.loc[(ia_ic_data['reach'].isnull()) | (ia_ic_data['reach'] == 0),
-                   'IC UPDATE4'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE4')
+                   'IC UPDATE4'] = utils.get_update_note(update_notes,
+                                                         module='Indirect Activities',
+                                                         update='IC UPDATE4')
     # How are null reach values possible?
     # Reach is null if there are no Intervention Channels for the Indirect Activity
 
     ia_ic_data['IC UPDATE5'] = np.nan
     ia_ic_data.loc[ia_ic_data.duplicated(subset=['activity_id', 'description', 'site_id'], keep=False),
-                   'IC UPDATE5'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE5')
+                   'IC UPDATE5'] = utils.get_update_note(update_notes,
+                                                         module='Indirect Activities',
+                                                         update='IC UPDATE5')
 
     ia_ic_data['IC UPDATE6'] = np.nan
     hard_copy_materials = "Hard copy materials (e.g. flyers, pamphlets, activity books, posters, banners, postcards, " \
                           "recipe cards, or newsletters for mailings)"
     ia_ic_data.loc[ia_ic_data['channel'] == hard_copy_materials,
-                   'IC UPDATE6'] = get_update_note(update_notes, module='Indirect Activities', update='IC UPDATE6')
+                   'IC UPDATE6'] = utils.get_update_note(update_notes,
+                                                         module='Indirect Activities',
+                                                         update='IC UPDATE6')
 
     # Concatenate Intervention Channels and Reach tab updates
     ia_ic_data = concat_updates(ia_ic_data,
@@ -529,7 +515,7 @@ def main(creds,
     # Partnerships
 
     # Convert counties to units for use in update notification email
-    part_data = counties_to_units(data=part_data, unit_field='partnership_unit', unit_counties=unit_counties)
+    part_data = utils.counties_to_units(data=part_data, unit_field='partnership_unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     part_data = part_data.loc[~part_data['partnership_name'].str.contains('(?i)TEST', regex=True),
@@ -553,15 +539,15 @@ def main(creds,
 
     part_data['GI UPDATE1'] = np.nan
     part_data.loc[part_data['action_plan_name'].isnull(),
-                  'GI UPDATE1'] = get_update_note(update_notes, module='Partnerships', update='GI UPDATE1')
+                  'GI UPDATE1'] = utils.get_update_note(update_notes, module='Partnerships', update='GI UPDATE1')
 
     part_data['GI UPDATE2'] = np.nan
     part_data.loc[(part_data['is_direct_education_intervention'] == 0) & (part_data['is_pse_intervention'] == 0),
-                  'GI UPDATE2'] = get_update_note(update_notes, module='Partnerships', update='GI UPDATE2')
+                  'GI UPDATE2'] = utils.get_update_note(update_notes, module='Partnerships', update='GI UPDATE2')
 
     part_data['GI UPDATE3'] = np.nan
     part_data.loc[part_data['program_area'] != 'SNAP-Ed',
-                  'GI UPDATE3'] = get_update_note(update_notes, module='Partnerships', update='GI UPDATE3')
+                  'GI UPDATE3'] = utils.get_update_note(update_notes, module='Partnerships', update='GI UPDATE3')
 
     # Concatenate General Information tab updates
     part_data = concat_updates(part_data,
@@ -570,15 +556,15 @@ def main(creds,
 
     part_data['CUSTOM DATA TAB UPDATES'] = np.nan
     part_data.loc[part_data['snap_ed_grant_goals'].isnull(),
-                  'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                               module='Partnerships',
-                                                               update='CUSTOM DATA TAB UPDATES')
+                  'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                     module='Partnerships',
+                                                                     update='CUSTOM DATA TAB UPDATES')
 
     part_data['EVALUATION TAB UPDATES'] = np.nan
     part_data.loc[part_data['relationship_depth'].isnull(),
-                  'EVALUATION TAB UPDATES'] = get_update_note(update_notes,
-                                                              module='Partnerships',
-                                                              update='EVALUATION TAB UPDATES')
+                  'EVALUATION TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                    module='Partnerships',
+                                                                    update='EVALUATION TAB UPDATES')
 
     # Subset records that require updates
     part_corrections = part_data.loc[part_data.filter(like='UPDATE').notnull().any(1)]
@@ -618,28 +604,32 @@ def main(creds,
     pa_sessions['GI UPDATE1'] = np.nan
     pa_sessions['start_date'] = pd.to_datetime(pa_sessions['start_date'])
     pa_sessions.loc[(pa_sessions['start_date'] < report_year_start) | (pa_sessions['start_date'] > report_year_end),
-                    'GI UPDATE1'] = get_update_note(update_notes, module='Program Activities', update='GI UPDATE1')
+                    'GI UPDATE1'] = utils.get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='GI UPDATE1')
 
     pa_sessions['GI UPDATE2'] = np.nan
     pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts)
                     & (pa_sessions['num_participants'].isnull()),
-                    'GI UPDATE2'] = get_update_note(update_notes,
-                                                    module='Program Activities',
-                                                    update='GI UPDATE2',
-                                                    notification='Notification1')
+                    'GI UPDATE2'] = utils.get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='GI UPDATE2',
+                                                          notification='Notification1')
     pa_sessions.loc[(pa_sessions['start_date_with_time'] < ts)
                     & (pa_sessions['num_participants'] == 0),
-                    'GI UPDATE2'] = get_update_note(update_notes,
-                                                    module='Program Activities',
-                                                    update='GI UPDATE2',
-                                                    notification='Notification2')
+                    'GI UPDATE2'] = utils.get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='GI UPDATE2',
+                                                          notification='Notification2')
 
     pa_sessions['GI UPDATE3'] = np.nan
     pa_sessions.loc[pa_sessions.duplicated(subset=['program_id', 'start_date_with_time'], keep=False),
-                    'GI UPDATE3'] = get_update_note(update_notes, module='Program Activities', update='GI UPDATE3')
+                    'GI UPDATE3'] = utils.get_update_note(update_notes,
+                                                          module='Program Activities',
+                                                          update='GI UPDATE3')
 
     # Convert counties to units for use in update notification email
-    pa_data = counties_to_units(data=pa_data, unit_field='unit', unit_counties=unit_counties)
+    pa_data = utils.counties_to_units(data=pa_data, unit_field='unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     pa_data = pa_data.loc[(~pa_data['name'].str.contains('(?i)TEST', regex=True))
@@ -667,7 +657,9 @@ def main(creds,
 
     pa_sessions_data['GI UPDATE4'] = np.nan
     pa_sessions_data.loc[(pa_sessions_data['length'] < 20) | (pa_sessions_data['length'].isnull()),
-                         'GI UPDATE4'] = get_update_note(update_notes, module='Program Activities', update='GI UPDATE4')
+                         'GI UPDATE4'] = utils.get_update_note(update_notes,
+                                                               module='Program Activities',
+                                                               update='GI UPDATE4')
 
     # Concatenate General Information tab updates
     pa_sessions_data = concat_updates(pa_sessions_data,
@@ -676,37 +668,37 @@ def main(creds,
 
     pa_sessions_data['CUSTOM DATA TAB UPDATES'] = np.nan
     pa_sessions_data.loc[pa_sessions_data['snap_ed_grant_goals'].isnull(),
-                         'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                                      module='Program Activities',
-                                                                      update='CUSTOM DATA TAB UPDATES',
-                                                                      notification='Notification1')
+                         'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                            module='Program Activities',
+                                                                            update='CUSTOM DATA TAB UPDATES',
+                                                                            notification='Notification1')
     pa_sessions_data.loc[(pa_sessions_data['snap_ed_special_projects'].str.contains('None'))
                          & (pa_sessions_data['snap_ed_special_projects'] != 'None'),
-                         'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                                      module='Program Activities',
-                                                                      update='CUSTOM DATA TAB UPDATES',
-                                                                      notification='Notification2')
+                         'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                            module='Program Activities',
+                                                                            update='CUSTOM DATA TAB UPDATES',
+                                                                            notification='Notification2')
 
     pa_sessions_data['SNAP-ED CUSTOM DATA TAB UPDATES'] = np.nan
 
     pa_sessions_data['SCD UPDATE1'] = np.nan
     pa_sessions_data.loc[pa_sessions_data['intervention'].isnull(),
-                         'SCD UPDATE1'] = get_update_note(update_notes,
-                                                          module='Program Activities',
-                                                          update='SCD UPDATE1',
-                                                          notification='Notification1')
+                         'SCD UPDATE1'] = utils.get_update_note(update_notes,
+                                                                module='Program Activities',
+                                                                update='SCD UPDATE1',
+                                                                notification='Notification1')
     pa_sessions_data.loc[pa_sessions_data['intervention'] != 'SNAP-Ed Community Network',
-                         'SCD UPDATE1'] = get_update_note(update_notes,
-                                                          module='Program Activities',
-                                                          update='SCD UPDATE1',
-                                                          notification='Notification2')
+                         'SCD UPDATE1'] = utils.get_update_note(update_notes,
+                                                                module='Program Activities',
+                                                                update='SCD UPDATE1',
+                                                                notification='Notification2')
 
     pa_sessions_data['SCD UPDATE2'] = np.nan
     settings_other = ['Other places people', 'Other settings people']
     pa_sessions_data.loc[pa_sessions_data['setting'].str.contains('|'.join(settings_other), na=False),
-                         'SCD UPDATE2'] = get_update_note(update_notes,
-                                                          module='Program Activities',
-                                                          update='SCD UPDATE2')
+                         'SCD UPDATE2'] = utils.get_update_note(update_notes,
+                                                                module='Program Activities',
+                                                                update='SCD UPDATE2')
 
     # Concatenate Snap-Ed Custom Data tab updates
     pa_sessions_data = concat_updates(pa_sessions_data,
@@ -723,9 +715,9 @@ def main(creds,
     pa_sessions_data = pd.merge(pa_sessions_data, pa_sessions_metrics, how='left', on='program_id')
     pa_sessions_data.loc[(pa_sessions_data['# of Sessions'] > 1) &
                          (pa_sessions_data['Total Session Participants'] == pa_sessions_data['participants_total']),
-                         'DEMOGRAPHICS TAB UPDATES'] = get_update_note(update_notes,
-                                                                       module='Program Activities',
-                                                                       update='DEMOGRAPHICS TAB UPDATES')
+                         'DEMOGRAPHICS TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                             module='Program Activities',
+                                                                             update='DEMOGRAPHICS TAB UPDATES')
     # End of year:
     # For entries with only 1 session, the total # of session participants should = total # of unique participants.
 
@@ -733,9 +725,9 @@ def main(creds,
     pa_data_fcs['CUSTOM DATA TAB UPDATES'] = np.nan
     pa_data_fcs.loc[(pa_data_fcs['fcs_program_team'].str.contains('SNAP-Ed'))
                     & (pa_data_fcs['fcs_grant_goals'].isnull()),
-                    'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                                 module='Program Activities',
-                                                                 update='CUSTOM DATA TAB UPDATES')
+                    'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                       module='Program Activities',
+                                                                       update='CUSTOM DATA TAB UPDATES')
 
     # Append FCS Program Activities to SNAP-Ed Program Activities
     add_cols = pa_sessions_data.columns[~pa_sessions_data.columns.isin(pa_data_fcs.columns)].tolist()
@@ -780,7 +772,7 @@ def main(creds,
     # PSE Site Activities
 
     # Convert counties to units for use in update notification email
-    pse_data = counties_to_units(data=pse_data, unit_field='pse_unit', unit_counties=unit_counties)
+    pse_data = utils.counties_to_units(data=pse_data, unit_field='pse_unit', unit_counties=unit_counties)
 
     # Filter out test records, select relevant columns
     pse_data['name'] = pse_data['name'].astype(str)
@@ -811,20 +803,20 @@ def main(creds,
     pse_data['GI UPDATE1'] = np.nan
     pse_data.loc[(pse_data['start_fiscal_year'] != 2022) & (
             pse_data['planning_stage_sites_contacted_and_agreed_to_participate'] == 1),
-                 'GI UPDATE1'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE1')
+                 'GI UPDATE1'] = utils.get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE1')
 
     pse_data['GI UPDATE2'] = np.nan
     pse_data.loc[pse_data['program_area'] == 'Family Consumer Science',
-                 'GI UPDATE2'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE2')
+                 'GI UPDATE2'] = utils.get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE2')
 
     pse_data['GI UPDATE3'] = np.nan
     pse_data.loc[(pse_data['site_id'].duplicated(keep=False))
                  & (pse_data['pse_unit'] != 'CPHP'),
-                 'GI UPDATE3'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE3')
+                 'GI UPDATE3'] = utils.get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE3')
 
     pse_data['GI UPDATE4'] = np.nan
     pse_data.loc[pse_data['intervention'] != 'SNAP-Ed Community Network',
-                 'GI UPDATE4'] = get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE4')
+                 'GI UPDATE4'] = utils.get_update_note(update_notes, module='PSE Site Activities', update='GI UPDATE4')
 
     # Concatenate General Information tab updates
     pse_data = concat_updates(pse_data,
@@ -833,9 +825,9 @@ def main(creds,
 
     pse_data['CUSTOM DATA TAB UPDATES'] = np.nan
     pse_data.loc[pse_data['snap_ed_grant_goals'].isnull(),
-                 'CUSTOM DATA TAB UPDATES'] = get_update_note(update_notes,
-                                                              module='PSE Site Activities',
-                                                              update='CUSTOM DATA TAB UPDATES')
+                 'CUSTOM DATA TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                    module='PSE Site Activities',
+                                                                    update='CUSTOM DATA TAB UPDATES')
 
     # Select relevant Needs, Readiness, Effectiveness columns
     pse_nre = pse_nre.loc[:, ['pse_id',
@@ -856,26 +848,34 @@ def main(creds,
     pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
                      & (pse_nre_data['baseline_score'].isnull())
                      & (~pse_nre_data['assessment_tool'].str.contains('SLAQ', na=False)),
-                     'NRE UPDATE1'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE1')
+                     'NRE UPDATE1'] = utils.get_update_note(update_notes,
+                                                            module='PSE Site Activities',
+                                                            update='NRE UPDATE1')
 
     pse_nre_data['NRE UPDATE2'] = np.nan
     pse_nre_data['baseline_date'] = pd.to_datetime(pse_nre_data['baseline_date'])
     pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
                      & (pse_nre_data['baseline_date'].isnull()),
-                     'NRE UPDATE2'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE2')
+                     'NRE UPDATE2'] = utils.get_update_note(update_notes,
+                                                            module='PSE Site Activities',
+                                                            update='NRE UPDATE2')
 
     pse_nre_data['NRE UPDATE3'] = np.nan
     pse_nre_data['follow_up_date'] = pd.to_datetime(pse_nre_data['follow_up_date'])
     pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
                      & (pse_nre_data['follow_up_date'].notnull())
                      & (pse_nre_data['follow_up_score'].isnull()),
-                     'NRE UPDATE3'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE3')
+                     'NRE UPDATE3'] = utils.get_update_note(update_notes,
+                                                            module='PSE Site Activities',
+                                                            update='NRE UPDATE3')
 
     pse_nre_data['NRE UPDATE4'] = np.nan
     pse_nre_data.loc[(pse_nre_data['assessment_type'] == 'Needs assessment/environmental scan')
                      & (pse_nre_data['follow_up_date'].isnull())
                      & (pse_nre_data['follow_up_score'].notnull()),
-                     'NRE UPDATE4'] = get_update_note(update_notes, module='PSE Site Activities', update='NRE UPDATE4')
+                     'NRE UPDATE4'] = utils.get_update_note(update_notes,
+                                                            module='PSE Site Activities',
+                                                            update='NRE UPDATE4')
 
     # Concatenate Needs, Readiness, Effectiveness tab updates
     pse_nre_data = concat_updates(pse_nre_data,
@@ -889,9 +889,10 @@ def main(creds,
     pse_nre_changes_data['CHANGES ADOPTED TAB UPDATES'] = np.nan
     pse_nre_changes_data.loc[(pse_nre_changes_data['change_id'].notnull())
                              & (pse_nre_changes_data['total_reach'].isnull()),
-                             'CHANGES ADOPTED TAB UPDATES'] = get_update_note(update_notes,
-                                                                              module='PSE Site Activities',
-                                                                              update='CHANGES ADOPTED TAB UPDATES')
+                             'CHANGES ADOPTED TAB UPDATES'] = utils.get_update_note(update_notes,
+                                                                                    module='PSE Site Activities',
+                                                                                    update='CHANGES ADOPTED '
+                                                                                           'TAB UPDATES')
 
     # Subset records that require updates
     pse_corrections = pse_nre_changes_data.loc[pse_nre_changes_data.filter(like='UPDATE').notnull().any(1)]

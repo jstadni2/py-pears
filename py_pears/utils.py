@@ -142,6 +142,30 @@ def reorder_name(df, name_field, reordered_name_field, drop_substr_fields=False)
     return out_df
 
 
+# Convert county values in the 'unit' field to units
+# data: dataframe of PEARS module data
+# unit_field: string for the label of the unit field (default: 'unit')
+# unit_counties: dataframe of counties mapped to units (default: empty dataframe)
+def counties_to_units(data, unit_field='unit', unit_counties=pd.DataFrame()):
+    out_data = data.copy()
+    out_data[unit_field] = out_data[unit_field].str.replace('|'.join([' \(County\)', ' \(District\)', 'Unit ']),
+                                                            '', regex=True)
+    out_data = pd.merge(out_data, unit_counties, how='left', left_on=unit_field, right_on='County')
+    out_data.loc[(~out_data[unit_field].isin(unit_counties['Unit #'])) &
+                 (out_data[unit_field].isin(unit_counties['County'])), unit_field] = out_data['Unit #']
+    return out_data
+
+
+# Get the update notification
+# update_notes: dataframe of update notification
+# module: string for the PEARS module
+# update: string for the label of the update column
+# notification: string for the desired notification column from update_notes (default: 'Notification1')
+def get_update_note(update_notes, module, update, notification='Notification1'):
+    return update_notes.loc[(update_notes['Module'] == module)
+                            & (update_notes['Update'] == update), notification].item()
+
+
 # Export a list of dataframes as an Excel workbook
 # file: string for the name or path of the file
 # sheet_names: list of strings for the name of each sheet
