@@ -281,7 +281,7 @@ def main(creds,
 
     if send_emails:
 
-        fcs_report_subject = 'PEARS Sites Report ' + prev_month.strftime('%Y-%m')
+        fcs_report_subject = 'SNAP-Ed Partnerships Data Entry ' + prev_month.strftime('%Y-%m')
 
         report_html = """<html>
           <head></head>
