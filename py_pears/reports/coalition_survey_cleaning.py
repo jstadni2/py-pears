@@ -22,20 +22,31 @@ def main(creds,
                               dst=export_dir,
                               modules=['Coalition'])
 
+    # Custom fields that require reformatting
+    # Only needed for multi-select dropdowns
+    custom_field_labels = ['fcs_program_team', 'snap_ed_grant_goals', 'fcs_grant_goals', 'fcs_special_projects',
+                           'snap_ed_special_projects']
+
     coa_export = pd.ExcelFile(export_dir + "Coalition_Export.xlsx")
     coa_data = pd.read_excel(coa_export, 'Coalition Data')
+    # create a utils function for removing _custom_data from column labels
+    coa_data = utils.reformat(coa_data, custom_field_labels)  # this is only necessary for the on_hiatus field
     coa_data = coa_data.loc[coa_data['program_area'].isin(['SNAP-Ed', 'Family Consumer Science'])]
     coa_data['coalition_id'] = coa_data['coalition_id'].astype(str)
 
+    # UPDATE: Implement a try-catch and/or util function
     prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1)).strftime('%m')
     fq_lookup = pd.DataFrame({'fq': ['Q1', 'Q2', 'Q3', 'Q4'], 'month': ['12', '03', '06', '09'],
                               'survey_fq': ['Quarter 1 (October-December)', 'Quarter 2 (January-March)',
                                             'Quarter 3 (April-June)', 'Quarter 4 (July-September)']})
     fq = fq_lookup.loc[fq_lookup['month'] == prev_month, 'fq'].item()
     survey_fq = fq_lookup.loc[fq_lookup['month'] == prev_month, 'survey_fq'].item()
-
-    coa_surveys = pd.read_excel(coalition_surveys_dir + "Responses By Survey - Coalition Survey - " + fq + ".xlsx",
+    # Using manual filename convention
+    coa_surveys = pd.read_excel(coalition_surveys_dir + "Coalition_Survey_" + fq + "_Export.xlsx",
                                 sheet_name='Response Data')
+    # Default PEARS survey export convention
+    # coa_surveys = pd.read_excel(coalition_surveys_dir + "Responses By Survey - Coalition Survey - " + fq + ".xlsx",
+                                # sheet_name='Response Data')
 
     # filter Responses By Survey by Completed == ---- to export all responses
     coa_surveys = utils.select_pears_data(coa_surveys,
@@ -96,7 +107,7 @@ def main(creds,
 
     # Create lookup table for unit to regional educators
     re_lookup = pd.read_excel(fy22_inep_staff, sheet_name="RE's and CD's")[
-        ['UNIT #', 'REGIONAL EDUCATOR', 'NETID/E-MAIL']]
+        ['UNIT #', 'REGIONAL EDUCATOR', 'RE E-MAIL']]
     re_lookup['REGIONAL EDUCATOR'] = re_lookup['REGIONAL EDUCATOR'].str.replace(', Interim', '')
     re_lookup = re_lookup.drop_duplicates()
     re_lookup = utils.reorder_name(re_lookup, 'REGIONAL EDUCATOR', 'REGIONAL EDUCATOR', drop_substr_fields=True)
@@ -127,7 +138,9 @@ def main(creds,
     coa_data.loc[(coa_data['relationship_depth'].isin(['Coalition', 'Collaboration', 'Coordination']))
                  & (~coa_data['coalition_id'].isin(coa_surveys['coalition_id']))
                  & (coa_data['on_hiatus'] != 'Yes'),
-                 'UPDATES'] = utils.get_update_note(update_notes, module='Coalitions', update='UPDATES')
+                 'UPDATES'] = utils.get_update_note(update_notes, module='Coalitions',
+                                                    update='UPDATES',
+                                                    notification='Notification')
 
     coa_corrections = coa_data.loc[(coa_data['UPDATES'].notnull())].drop(columns=['program_area',
                                                                                   'created',
@@ -146,7 +159,8 @@ def main(creds,
     coa_surveys.loc[~coa_surveys['coalition_id'].isin(coa_data['coalition_id']),
                     'EVALUATION TAB UPDATES'] = utils.get_update_note(update_notes,
                                                                       module='Program Activities',
-                                                                      update='EVALUATION TAB UPDATES')
+                                                                      update='EVALUATION TAB UPDATES',
+                                                                      notification='Notification')
 
     coa_survey_corrections = coa_surveys.loc[coa_surveys['EVALUATION TAB UPDATES'].notnull()].set_index(
         'program_id').fillna('')
