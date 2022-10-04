@@ -166,6 +166,21 @@ def get_update_note(update_notes, module, update, notification='Notification1'):
                             & (update_notes['Update'] == update), notification].item()
 
 
+# Merge records to Partnerships via site_id, compute module counts
+# primary_records: dataframe of records that related records will be left-joined to
+# primary_id: string for the unique ID column of primary_records
+# related_records: dataframe of related records that will be left-joined to primary_records
+# merge_on: string for the column to join the primary and related records
+# related_id: string for the unique ID column of related_records
+# count_label: string for the label of the count column
+def count_related_records(primary_records, primary_id, related_records, merge_on, related_id, count_label):
+    out_df = primary_records.copy()
+    out_df = pd.merge(out_df, related_records, how='left', on=merge_on)
+    out_df = out_df.groupby(primary_id)[related_id].count().reset_index(name=count_label)
+    out_df = pd.merge(primary_records, out_df, how='left', on=primary_id)
+    return out_df
+
+
 # Function to calculate total records for each module and update.
 # df: dataframe of module corrections
 # module: string value of module name

@@ -19,7 +19,7 @@ This is how python package should look like!
 ```bash
 pip install py-pears
 ```
-### Setyp
+### Setup
 
 Example `credentials.json`:
 
