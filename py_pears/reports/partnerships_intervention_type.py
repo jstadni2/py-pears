@@ -1,8 +1,8 @@
 import pandas as pd
-import numpy as np
-import smtplib
 import py_pears.utils as utils
 
+
+# Extraneous report, refactor flag into Monthly Data Cleaning
 
 def main(creds, export_dir, output_dir, staff_list):
     # Download required PEARS exports from S3
@@ -17,11 +17,11 @@ def main(creds, export_dir, output_dir, staff_list):
 
     fy22_inep_staff = pd.ExcelFile(staff_list)
     # Adjust header argument in following lines for actual staff list
-    snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='SNAP-Ed Staff List', header=0)
+    snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='SNAP-Ed Staff List', header=1)
     # Import list of former staff
     # Used to send former staff's updates to evaluation team
     former_snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='Former Staff')
-    former_snap_ed_staff['email'] = former_snap_ed_staff['NETID'].map(str) + '@illinois.edu'
+    former_snap_ed_staff['email'] = former_snap_ed_staff['E-MAIL/NETID'].map(str) + '@illinois.edu'
     # heat_staff = pd.read_excel(fy22_inep_staff, sheet_name='HEAT Project Staff', header=0)
     # state_staff = pd.read_excel(fy22_inep_staff, sheet_name='FCS State Office', header=0)
     # staff_cols = ['NAME', 'E-MAIL']
@@ -44,7 +44,7 @@ def main(creds, export_dir, output_dir, staff_list):
     # Only data clean records for SNAP-Ed
     ia_data = ia_data.loc[ia_data['program_area'] == 'SNAP-Ed']
     ia_ic = pd.read_excel(indirect_activities_export, 'Intervention Channels')
-    ia_ic_data = pd.merge(ia_data, ia_ic, how='left', on='activity_id')['activity_id', 'site_id']
+    ia_ic_data = pd.merge(ia_data, ia_ic, how='left', on='activity_id')[['activity_id', 'site_id']]
 
     # Import Partnerships data
     partnerships_export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
@@ -71,7 +71,7 @@ def main(creds, export_dir, output_dir, staff_list):
 
     # Import PSE Site Activity data, Needs, Readiness, Effectiveness, and Changes
     pse_site_activities_export = pd.ExcelFile(export_dir + "PSE_Site_Activity_Export.xlsx")
-    pse_data = pd.read_excel(pse_site_activities_export, 'PSE Data')['pse_id', 'site_id']
+    pse_data = pd.read_excel(pse_site_activities_export, 'PSE Data')[['pse_id', 'site_id']]
 
     # Create a class, list of objects for these lists
     related_records = [ia_ic_data, pa_data, pse_data]
@@ -88,18 +88,19 @@ def main(creds, export_dir, output_dir, staff_list):
                                                 binary=True)
 
     # Partnerships that require updates to intervention type fields
-    part_int = part_data.loc[part_data['is_direct_education_intervention'] != part_data['related_indirect_activities']
-                             | part_data['is_direct_education_intervention'] != part_data['related_program_activities']
-                             | part_data['is_pse_intervention'] != part_data['related_pse_site_activities']]
+    part_int = part_data.loc[((part_data['is_direct_education_intervention'] == 0)
+                              & ((part_data['related_indirect_activities'] == 1)
+                                 | (part_data['is_direct_education_intervention'] == 1)))
+                             | ((part_data['is_pse_intervention'] == 0)
+                                & (part_data['related_pse_site_activities'] == 1))]
 
 # Just excel workbook or send notifications to users?
     utils.write_report(file=output_dir + 'Update Partnerships Intervention Type.xlsx',
-                       sheet_names=['Update Partnerships Intervention Type'],
+                       sheet_names=['Partnerships'],
                        dfs=[part_int])
 
 
 # Run report directly from command line
 # Parse inputs with argparse
 # if __name__ == '__main__':
-#     main(creds=utils.load_credentials(),
-#          )
+#     main()

@@ -6,6 +6,7 @@ import py_pears.reports.monthly_data_cleaning as monthly_data_cleaning
 import py_pears.reports.quarterly_program_evaluation as quarterly_program_evaluation
 import py_pears.reports.partnerships_entry as partnerships_entry
 import py_pears.reports.coalition_survey_cleaning as coalition_survey_cleaning
+import py_pears.reports.partnerships_intervention_type as partnerships_intervention_type
 
 
 # Calculate the path to the root directory of this package
@@ -61,3 +62,12 @@ coalition_survey_cleaning.main(creds=creds,
                                staff_list=staff_list,
                                unit_counties=unit_counties,
                                update_notifications=update_notifications)
+
+# Annual Reports
+
+# Run Partnerships Intervention Type Cleaning with default inputs
+partnerships_intervention_type.main(creds=creds,
+                                    export_dir=EXPORT_DIR,
+                                    output_dir=OUT_DIR,
+                                    staff_list=staff_list,
+                                    )

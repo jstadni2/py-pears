@@ -173,11 +173,14 @@ def get_update_note(update_notes, module, update, notification='Notification1'):
 # merge_on: string for the column to join the primary and related records
 # related_id: string for the unique ID column of related_records
 # count_label: string for the label of the count column
-def count_related_records(primary_records, primary_id, related_records, merge_on, related_id, count_label):
+def count_related_records(primary_records, primary_id, related_records, merge_on, related_id, count_label,
+                          binary=False):
     out_df = primary_records.copy()
     out_df = pd.merge(out_df, related_records, how='left', on=merge_on)
     out_df = out_df.groupby(primary_id)[related_id].count().reset_index(name=count_label)
     out_df = pd.merge(primary_records, out_df, how='left', on=primary_id)
+    if binary:
+        out_df.loc[out_df[count_label] > 0, count_label] = 1
     return out_df
 
 
