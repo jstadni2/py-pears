@@ -19,24 +19,8 @@ def main(creds, export_dir, output_dir, staff_list):
     # Adjust header argument in following lines for actual staff list
     snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='SNAP-Ed Staff List', header=1)
     # Import list of former staff
-    # Used to send former staff's updates to evaluation team
     former_snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='Former Staff')
     former_snap_ed_staff['email'] = former_snap_ed_staff['E-MAIL/NETID'].map(str) + '@illinois.edu'
-    # heat_staff = pd.read_excel(fy22_inep_staff, sheet_name='HEAT Project Staff', header=0)
-    # state_staff = pd.read_excel(fy22_inep_staff, sheet_name='FCS State Office', header=0)
-    # staff_cols = ['NAME', 'E-MAIL']
-    # staff_dfs = [snap_ed_staff[staff_cols], heat_staff[staff_cols], state_staff[staff_cols]]
-    # inep_staff = pd.concat(staff_dfs, ignore_index=True).rename(columns={'E-MAIL': 'email'})
-    # inep_staff = inep_staff.loc[~inep_staff.isnull().any(1)]
-    # inep_staff = reorder_name(inep_staff, 'NAME', 'full_name')
-    # cphp_staff = pd.read_excel(fy22_inep_staff, sheet_name='CPHP Staff List', header=0).rename(
-    #     columns={'Last Name': 'last_name',
-    #              'First Name': 'first_name',
-    #              'Email Address': 'email'})
-    # cphp_staff['full_name'] = cphp_staff['first_name'].map(str) + ' ' + cphp_staff['last_name'].map(str)
-    # staff = inep_staff.drop(columns='NAME').append(cphp_staff.loc[~cphp_staff['email'].isnull(),
-    #                                                               ['email', 'first_name', 'last_name', 'full_name']],
-    #                                                ignore_index=True).drop_duplicates()
 
     # Import Indirect Activity data and Intervention Channels
     indirect_activities_export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
