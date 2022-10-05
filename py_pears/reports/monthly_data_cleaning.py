@@ -114,7 +114,7 @@ def write_corrections_report(report_dict, file_path):
     writer.close()
 
 
-# Run the Monthly Data Cleaning
+# Run the Monthly Data Cleaning report
 # creds: dict of credentials loaded from credentials.json
 # export_dir: directory where PEARS exports are downloaded to
 # output_dir: directory where report outputs are saved

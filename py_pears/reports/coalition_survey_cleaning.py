@@ -4,6 +4,19 @@ import smtplib
 import py_pears.utils as utils
 
 
+# Run the Coalition Survey Cleaning report
+# creds: dict of credentials loaded from credentials.json
+# export_dir: directory where PEARS exports are downloaded to
+# output_dir: directory where report outputs are saved
+# coalition_surveys_dir: string for the directory where PEARS Coalition Survey exports are stored
+# staff_list: path to the staff list Excel workbook
+# unit_counties: path to a workbook that maps counties to Extension units
+# update_notifications: path to a workbook that compiles the update notifications
+# send_emails: boolean for sending emails associated with this report (default: False)
+# notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
+# report_cc: list-like string of email addresses to cc on the report email
+# report_recipients: list-like string of email addresses for recipients of the report email
+# former_staff_report_recipients: list-like string of email addresses for recipients of the former staff corrections
 def main(creds,
          export_dir,
          output_dir,
@@ -14,7 +27,8 @@ def main(creds,
          send_emails=False,
          notification_cc='',
          report_cc='',
-         report_recipients=''):
+         report_recipients='',
+         former_staff_report_recipients=''):
 
     # Download required PEARS exports from S3
     utils.download_s3_exports(profile=creds['aws_profile'],
@@ -317,8 +331,6 @@ def main(creds,
 
         # Send former staff updates email
 
-        former_staff_report_recipients = 'recipient@domain.com'
-
         former_staff_html = """<html>
           <head></head>
         <body>
@@ -362,8 +374,6 @@ def main(creds,
                                 is_tls=True)
         except smtplib.SMTPException:
             failed_recipients.append(['DATA ENTRY SUPPORT NAME', former_staff_report_recipients])
-
-        report_recipients = 'list@domain.com, of_recipients@domain.com'
 
         report_subject = 'Quarterly Coalition Survey Entry Q2 ' + fq
 
