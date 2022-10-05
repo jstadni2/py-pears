@@ -2,8 +2,13 @@ import pandas as pd
 import py_pears.utils as utils
 
 
-# Extraneous report, refactor flag into Monthly Data Cleaning
+# UPDATE Extraneous report, refactor into notification flag in Monthly Data Cleaning
 
+# Run the Partnerships Intervention Type report
+# creds: dict of credentials loaded from credentials.json
+# export_dir: directory where PEARS exports are downloaded to
+# output_dir: directory where report outputs are saved
+# staff_list: path to the staff list Excel workbook
 def main(creds, export_dir, output_dir, staff_list):
     # Download required PEARS exports from S3
     utils.download_s3_exports(profile=creds['aws_profile'],
