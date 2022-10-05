@@ -32,6 +32,11 @@ creds = utils.load_credentials()
 # Refactor schedule using OOP?
 
 
+# Compare date to the given year, month, or day
+# left_date: datetime date that subsequent arguments are compared to (default: date.today())
+# year: int for the year to compare left_date to (default: date.today().year)
+# month: int for the month to compare left_date to (default: date.today().month)
+# day: int for the day to compare left_date to (default: date.today().day)
 def compare_date(left_date=date.today(),
                  year=date.today().year,
                  month=date.today().month,
@@ -39,6 +44,8 @@ def compare_date(left_date=date.today(),
     return left_date == date(year, month, day)
 
 
+# Compare today's date at the start of each quarter
+# days: int list for the days to today's date to
 def compare_date_quarterly(days):
     quarter_start_months = [1, 4, 7, 10]
     for month in quarter_start_months:
@@ -101,5 +108,4 @@ if compare_date(month=10, day=4):
     partnerships_intervention_type.main(creds=creds,
                                         export_dir=EXPORT_DIR,
                                         output_dir=OUT_DIR,
-                                        staff_list=staff_list,
-                                        )
+                                        staff_list=staff_list)
