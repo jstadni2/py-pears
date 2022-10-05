@@ -5,29 +5,25 @@ import smtplib
 
 # Run the Sites Report
 # creds: dict of credentials loaded from credentials.json
-# export_dir: directory where PEARS exports are downloaded to
+# sites_export: path to PEARS export of Sites
+# users_export: path to PEARS export of Users
 # output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
 # notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
 def main(creds,
-         export_dir,
+         sites_export,
+         users_export,
          output_dir,
          send_emails=False,
          notification_cc='',
          report_cc='',
          report_recipients=''):
 
-    # Download required PEARS exports from S3
-    utils.download_s3_exports(profile=creds['aws_profile'],
-                              org=creds['s3_organization'],
-                              dst=export_dir,
-                              modules=['Site', 'User'])
-
     # Import input data
-    sites = pd.read_excel(export_dir + "Site_Export.xlsx", sheet_name='Site Data')
-    users = pd.read_excel(export_dir + "User_Export.xlsx", sheet_name='User Data')
+    sites = pd.read_excel(sites_export, sheet_name='Site Data')
+    users = pd.read_excel(users_export, sheet_name='User Data')
 
     # Sites Report
 

@@ -59,7 +59,15 @@ def compare_date_quarterly(days):
 
 # Run Sites Report with default inputs
 if compare_date(day=2):
-    sites_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
+    # Download required PEARS exports from S3
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              dst=EXPORT_DIR,
+                              modules=['Site', 'User'])
+    sites_report.main(creds=creds,
+                      sites_export=EXPORT_DIR + "Site_Export.xlsx",
+                      users_export=EXPORT_DIR + "User_Export.xlsx",
+                      output_dir=OUT_DIR)
 
 # Run Staff Report with default inputs
 if compare_date(day=11):
