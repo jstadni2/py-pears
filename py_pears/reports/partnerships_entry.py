@@ -3,6 +3,16 @@ import numpy as np
 import py_pears.utils as utils
 
 
+# Run the Partnerships Entry report
+# creds: dict of credentials loaded from credentials.json
+# export_dir: directory where PEARS exports are downloaded to
+# output_dir: directory where report outputs are saved
+# staff_list: path to the staff list Excel workbook
+# unit_counties: path to a workbook that maps counties to Extension units
+# prev_year_part_export: path to PEARS export of Partnerships from the previous report year
+# send_emails: boolean for sending emails associated with this report (default: False)
+# report_cc: list-like string of email addresses to cc on the report email
+# report_recipients: list-like string of email addresses for recipients of the report email
 def main(creds,
          export_dir,
          output_dir,
