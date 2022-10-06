@@ -228,6 +228,24 @@ def write_report(file, sheet_names=None, dfs=None, report_dict=None):
     writer.close()
 
 
+# Convert sheet openpyxl Workbook Worksheet to DataFrame
+# wb: openpyxl Workbook object
+# sheet: string for the sheet label
+# returns a DataFrame with the first row of sheet data used for column labels
+def wb_sheet_to_df(wb, sheet):
+    data = wb[sheet].values
+    columns = next(data)[0:]
+    return pd.DataFrame(data, columns=columns)
+
+
+# Set the first row of a dataframe as columns
+# df: dataframe
+def first_row_to_cols(df):
+    out_df = df.copy()
+    out_df.columns = out_df.iloc[0]
+    return out_df.drop(out_df.index[0])
+
+
 # load credentials.json file as a dict
 # credentials.json must be created in /py_pears
 def load_credentials():

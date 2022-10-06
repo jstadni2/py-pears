@@ -31,7 +31,7 @@ unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
 update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
 
 EXPECTED_OUTPUTS_DIR = ROOT_DIR + '/expected_outputs/'
-TEST_OUTPUTS_DIR = ROOT_DIR + '/test_outputs/'
+ACTUAL_OUTPUTS_DIR = ROOT_DIR + '/actual_outputs/'
 
 creds = utils.load_credentials()
 
@@ -41,64 +41,84 @@ def compare_workbooks(xlsx1, xlsx2, diff_filename):
     wb1 = openpyxl.load_workbook(xlsx1)  # use openpyxl?
     wb2 = openpyxl.load_workbook(xlsx2)
     # Return False if sheet names aren't equal
-    sheets1 = wb1.get_sheet_names()
-    sheets2 = wb2.get_sheet_names()
+    sheets1 = wb1.sheetnames
+    sheets2 = wb2.sheetnames
     if not sheets1 == sheets2:
         # print('')
         return False
-    with pd.ExcelWriter(diff_filename) as writer:
-        for sheet in sheets1:
-            df1 = pd.DataFrame(wb1[sheet].values)
-            df2 = pd.DataFrame(wb2[sheet].values)
-            if df1.equals(df2):
-                continue
-            else:  # Why is this entered for test 1?
-                comparison_values = df1.values == df2.values
 
-                # print(comparison_values)
+    diff_dfs = {}
+    # Check column labels and data for mismatches between sheets
+    for sheet in sheets1:
+        df1 = pd.DataFrame(wb1[sheet].values)
+        df2 = pd.DataFrame(wb2[sheet].values)
 
-                rows, cols = np.where(comparison_values == False)
-                for item in zip(rows, cols):
-                    df1.iloc[item[0], item[1]] = '{} --> {}'.format(df1.iloc[item[0],
-                                                                             item[1]],
-                                                                    df2.iloc[item[0],
-                                                                             item[1]])
+        if not df1.equals(df2):
+            comparison_values = df1.values == df2.values
 
-                df1.to_excel(writer, sheet_name=sheet, index=False, header=True)
-                # Print all unequal sheets instead of just the first one
-                return False
+            rows, cols = np.where(comparison_values == False)
+            for item in zip(rows, cols):
+                df1.iloc[item[0], item[1]] = '{} --> {}'.format(df1.iloc[item[0],
+                                                                         item[1]],
+                                                                df2.iloc[item[0],
+                                                                         item[1]])
+
+            diff_dfs.update({sheet: utils.first_row_to_cols(df1)})
+
+    if diff_dfs:
+        utils.write_report(file=diff_filename, report_dict=diff_dfs)
+        return False
+    else:
         return True
 
 
-# Test 1
+# Create a helper function for compare_workbooks() tests
+
+# Compare copies of the same workbook
 def test_compare_workbooks_true():
-    # Following call should NOT export diff
+    diff = ACTUAL_OUTPUTS_DIR + 'wb_1_wb_1_diff.xlsx'
     result = compare_workbooks(xlsx1=TEST_INPUTS_DIR + 'test_wb_1.xlsx',
                                xlsx2=EXPECTED_OUTPUTS_DIR + 'test_wb_1.xlsx',
-                               diff_filename=TEST_OUTPUTS_DIR + 'test_compare_workbooks_true_diff.xlsx')
+                               diff_filename=diff)
     assert result is True
+    # compare_workbooks() for test workbooks 1 and 1 should NOT export diff
+    assert os.path.isfile(diff) is False
 
 
+# Compare different workbooks
 def test_compare_workbooks_false():
-    # Following call should export diff
+    # Compare workbooks with different data
+    diff = ACTUAL_OUTPUTS_DIR + 'wb_1_wb_2_diff.xlsx'
     result_1_2 = compare_workbooks(xlsx1=TEST_INPUTS_DIR + 'test_wb_1.xlsx',
                                    xlsx2=EXPECTED_OUTPUTS_DIR + 'test_wb_2.xlsx',
-                                   diff_filename=TEST_OUTPUTS_DIR + 'test_compare_workbooks_false_diff.xlsx')
+                                   diff_filename=diff)
     assert result_1_2 is False
-    # Following call should NOT export diff
+    # compare_workbooks() for test workbooks 1 and 2 should export diff
+    assert os.path.isfile(diff) is True
+    # Diff should contain all inequal sheets
+    test_wb_1 = openpyxl.load_workbook(TEST_INPUTS_DIR + 'test_wb_1.xlsx')
+    # wb_1_sheets = test_wb_1.sheetnames
+    assert openpyxl.load_workbook(diff).sheetnames == test_wb_1.sheetnames
+
+    # Compare workbooks with different sheet names
+    diff = ACTUAL_OUTPUTS_DIR + 'wb_1_wb_3_diff.xlsx'
     result_1_3 = compare_workbooks(xlsx1=TEST_INPUTS_DIR + 'test_wb_1.xlsx',
                                    xlsx2=EXPECTED_OUTPUTS_DIR + 'test_wb_3.xlsx',
-                                   diff_filename=TEST_OUTPUTS_DIR + 'should_not_exist_diff.xlsx')
+                                   diff_filename=diff)
     assert result_1_3 is False
-
+    # compare_workbooks() for test workbooks 1 and 3 should NOT export diff
+    assert os.path.isfile(diff) is False
 
 
 def test_sites_report():
+    diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
     sites_report.main(creds=creds,
-                      sites_export=TEST_INPUTS_DIR + "Site_Export.xlsx",
-                      users_export=TEST_INPUTS_DIR + "User_Export.xlsx",
-                      output_dir=TEST_OUTPUTS_DIR)
-    result = compare_workbooks(xlsx1=TEST_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               diff_filename=TEST_OUTPUTS_DIR + 'sites_report_diff.xlsx')
+                      sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",  # Generate with Faker
+                      users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",  # Generate with Faker
+                      output_dir=ACTUAL_OUTPUTS_DIR)
+    result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
+                               xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',  # Generate with module
+                               diff_filename=ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx')
     assert result is True
+    # Report output changed if diff exists
+    assert os.path.isfile(diff) is False
