@@ -48,12 +48,11 @@ def compare_workbooks(xlsx1, xlsx2, diff_output_dir):
         return False
     with pd.ExcelWriter(diff_output_dir + 'Excel_diff.xlsx') as writer:
         for sheet in sheets1:
-            # check if sheet is in the other Excel file
-            df1 = wb1[sheet]
-            df2 = wb2[sheet]
-            if df1 == df2:
+            df1 = pd.DataFrame(wb1[sheet].values)
+            df2 = pd.DataFrame(wb2[sheet].values)
+            if df1.equals(df2):
                 continue
-            else:
+            else:  # Why is this entered for test 1?
                 comparison_values = df1.values == df2.values
 
                 # print(comparison_values)
@@ -71,8 +70,16 @@ def compare_workbooks(xlsx1, xlsx2, diff_output_dir):
         return True
 
 
-def test_sites_report():
+# Test 1
+def test_sites_report1():
     result = compare_workbooks(xlsx1=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
                                xlsx2=TEST_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
                                diff_output_dir=TEST_OUTPUTS_DIR)
     assert result is True
+
+
+def test_sites_report2():
+    result = compare_workbooks(xlsx1=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
+                               xlsx2=TEST_OUTPUTS_DIR + 'PEARS Sites Report 2022-09 NOT EQUAL.xlsx',
+                               diff_output_dir=TEST_OUTPUTS_DIR)
+    assert result is False
