@@ -37,7 +37,7 @@ creds = utils.load_credentials()
 
 
 # Compare Excel Workbook objects
-def compare_workbooks(xlsx1, xlsx2, diff_output_dir):
+def compare_workbooks(xlsx1, xlsx2, diff_filename):
     wb1 = openpyxl.load_workbook(xlsx1)  # use openpyxl?
     wb2 = openpyxl.load_workbook(xlsx2)
     # Return False if sheet names aren't equal
@@ -46,7 +46,7 @@ def compare_workbooks(xlsx1, xlsx2, diff_output_dir):
     if not sheets1 == sheets2:
         # print('')
         return False
-    with pd.ExcelWriter(diff_output_dir + 'Excel_diff.xlsx') as writer:
+    with pd.ExcelWriter(diff_filename) as writer:
         for sheet in sheets1:
             df1 = pd.DataFrame(wb1[sheet].values)
             df2 = pd.DataFrame(wb2[sheet].values)
@@ -71,15 +71,34 @@ def compare_workbooks(xlsx1, xlsx2, diff_output_dir):
 
 
 # Test 1
-def test_sites_report1():
-    result = compare_workbooks(xlsx1=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               xlsx2=TEST_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               diff_output_dir=TEST_OUTPUTS_DIR)
+def test_compare_workbooks_true():
+    # Following call should NOT export diff
+    result = compare_workbooks(xlsx1=TEST_INPUTS_DIR + 'test_wb_1.xlsx',
+                               xlsx2=EXPECTED_OUTPUTS_DIR + 'test_wb_1.xlsx',
+                               diff_filename=TEST_OUTPUTS_DIR + 'test_compare_workbooks_true_diff.xlsx')
     assert result is True
 
 
-def test_sites_report2():
-    result = compare_workbooks(xlsx1=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               xlsx2=TEST_OUTPUTS_DIR + 'PEARS Sites Report 2022-09 NOT EQUAL.xlsx',
-                               diff_output_dir=TEST_OUTPUTS_DIR)
-    assert result is False
+def test_compare_workbooks_false():
+    # Following call should export diff
+    result_1_2 = compare_workbooks(xlsx1=TEST_INPUTS_DIR + 'test_wb_1.xlsx',
+                                   xlsx2=EXPECTED_OUTPUTS_DIR + 'test_wb_2.xlsx',
+                                   diff_filename=TEST_OUTPUTS_DIR + 'test_compare_workbooks_false_diff.xlsx')
+    assert result_1_2 is False
+    # Following call should NOT export diff
+    result_1_3 = compare_workbooks(xlsx1=TEST_INPUTS_DIR + 'test_wb_1.xlsx',
+                                   xlsx2=EXPECTED_OUTPUTS_DIR + 'test_wb_3.xlsx',
+                                   diff_filename=TEST_OUTPUTS_DIR + 'should_not_exist_diff.xlsx')
+    assert result_1_3 is False
+
+
+
+def test_sites_report():
+    sites_report.main(creds=creds,
+                      sites_export=TEST_INPUTS_DIR + "Site_Export.xlsx",
+                      users_export=TEST_INPUTS_DIR + "User_Export.xlsx",
+                      output_dir=TEST_OUTPUTS_DIR)
+    result = compare_workbooks(xlsx1=TEST_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
+                               xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
+                               diff_filename=TEST_OUTPUTS_DIR + 'sites_report_diff.xlsx')
+    assert result is True
