@@ -72,7 +72,9 @@ def compare_workbooks(xlsx1, xlsx2, diff_filename):
         return True
 
 
-# Create a helper function for compare_workbooks() tests
+# Create a helper function for compare_workbooks_true() tests, parameterize for reports
+# Delete diff files if they already exist
+# Display warnings?
 
 # Compare copies of the same workbook
 def test_compare_workbooks_true():
@@ -95,9 +97,8 @@ def test_compare_workbooks_false():
     assert result_1_2 is False
     # compare_workbooks() for test workbooks 1 and 2 should export diff
     assert os.path.isfile(diff) is True
-    # Diff should contain all inequal sheets
+    # Diff should contain all unequal sheets
     test_wb_1 = openpyxl.load_workbook(TEST_INPUTS_DIR + 'test_wb_1.xlsx')
-    # wb_1_sheets = test_wb_1.sheetnames
     assert openpyxl.load_workbook(diff).sheetnames == test_wb_1.sheetnames
 
     # Compare workbooks with different sheet names
