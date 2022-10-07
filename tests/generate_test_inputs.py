@@ -4,6 +4,7 @@ from faker import Faker
 from faker_education import SchoolProvider
 import random
 import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Font, PatternFill, Border, Side
 import shutil
 
@@ -96,20 +97,18 @@ def join_fake_sites(sites, site_fields, site_type):
 
 
 # Helper function to replace Excel sheet with dataframe
-def overwrite_sheet(writer, book, sheet, df):
-    # writer.book = book
-    # writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
-    # writer.sheets = book.sheetnames
-    # ws = writer.sheets[sheet]
-    # # Check sheet is in workbook
-    # if sheet not in book.sheetnames:
-    #     raise Exception('sheet: ' + sheet + ' not found in Excel Workbook: ' + writer.path)
+def overwrite_sheet(file_name, book, sheet, df):
+    if sheet not in book.sheetnames:
+        raise Exception('sheet: ' + sheet + ' not found in Excel Workbook')
+
     ws = book[sheet]
-    # Clear original contents of sheet
     ws.delete_cols(1, ws.max_column)
     ws.delete_rows(1, ws.max_row)
-    # Add reformatted data to sheet
-    df.to_excel(writer, sheet_name=sheet, index=False)
+
+    rows = dataframe_to_rows(df, index=False)
+    for row in rows:
+        ws.append(row)
+
     # Use original sheet's style formatting
     font = Font(bold=False)
     fill = PatternFill(fill_type='solid', fgColor='00C0C0C0')
@@ -119,17 +118,19 @@ def overwrite_sheet(writer, book, sheet, df):
         c.fill = fill
         c.border = border
 
+    book.save(file_name)
+
 
 # Function to update workbook with reformatted data
 # file_name: Module export Excel file
-# data: reformatted dataframe to replace data sheet
-# data_sheet: Excel sheet of module data
-def overwrite_excel(file_name, data, data_sheet):
-    # Open module's workbook
+# sheets: list of Excel sheets
+# data: list of dataframes to overwrite sheet data
+# sheets_dict
+def overwrite_excel(file_name, sheets, data):
+    sheets_dict = dict(zip(sheets, data))
     book = openpyxl.load_workbook(file_name)
-    # Reformat module data tab without importing every tab
-    with pd.ExcelWriter(file_name, engine='openpyxl', mode='w') as writer:
-        overwrite_sheet(writer, book, data_sheet, data)
+    for sheet, df in sheets_dict.items():
+        overwrite_sheet(file_name, book, sheet, df)
 
 
 def delete_sheets(file_name, sheets):
@@ -208,6 +209,7 @@ def clean_module_exports(in_path, out_path, import_modules, emails_dict, names_d
         dst = out_path + module.name + "_Export.xlsx"
         shutil.copyfile(src, dst)
         # ADD open book, instantiate writer
+        book = openpyxl.load_workbook(dst)
         # Read module's sheet
         for submod in module.submodules:
             data = pd.read_excel(dst, sheet_name=submod.name)
@@ -229,7 +231,7 @@ def clean_module_exports(in_path, out_path, import_modules, emails_dict, names_d
 
             # Overwrite each workbook sheet with replaced data
             # use overwrite_sheet instead
-            overwrite_excel(dst, data, submod.name)
+            overwrite_sheet(dst, book, submod.name, data)
 
 
 # Function to remove worksheet format
@@ -249,369 +251,368 @@ def remove_format(ws):
 # pears_prev_year_dir
 # test_inputs_pears_prev_year_dir
 # test_inputs_coalition_surveys_dir
-#def main(export_dir=EXPORT_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
+def main(export_dir=EXPORT_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
 
-export_dir = EXPORT_DIR
-test_pears_dir = TEST_INPUTS_PEARS_DIR
+    creds = utils.load_credentials()
 
-creds = utils.load_credentials()
+    # Download all PEARS S3 objects for today
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              dst=export_dir)
 
-# Download all PEARS S3 objects for today
-utils.download_s3_exports(profile=creds['aws_profile'],
-                          org=creds['s3_organization'],
-                          dst=export_dir)
+    # Import Users export
 
-# Import Users export
+    users = pd.read_excel(export_dir + 'User_Export.xlsx',
+                          sheet_name='User Data')[
+        ['user_id', 'username', 'email', 'full_name', 'unit', 'program_area', 'viewable_units', 'is_active']]
 
-users = pd.read_excel(export_dir + 'User_Export.xlsx',
-                      sheet_name='User Data')[
-    ['user_id', 'username', 'email', 'full_name', 'unit', 'program_area', 'viewable_units', 'is_active']]
+    # Set replacement values for users
 
-# Set replacement values for users
+    users['new_full_name'] = pd.DataFrame(create_user(len(users)))
+    users['new_last_name'] = users['new_full_name'].str.split(pat=' ', n=1).str[1]
+    users['new_first_name'] = users['new_full_name'].str.split(pat=' ', n=1).str[0]
+    users['new_last_first'] = users['new_last_name'] + ',' + ' ' + users['new_first_name']
+    users['new_username'] = users['new_first_name'].str.replace('.', '', regex=True) + '.' + users[
+        'new_last_name'].str.replace('.', '', regex=True) + '@fake_domain.com'
+    users['new_username'] = users['new_username'].replace({' ': '.'}, regex=True)
+    users['new_email'] = users['new_username']
 
-users['new_full_name'] = pd.DataFrame(create_user(len(users)))
-users['new_last_name'] = users['new_full_name'].str.split(pat=' ', n=1).str[1]
-users['new_first_name'] = users['new_full_name'].str.split(pat=' ', n=1).str[0]
-users['new_last_first'] = users['new_last_name'] + ',' + ' ' + users['new_first_name']
-users['new_username'] = users['new_first_name'].str.replace('.', '', regex=True) + '.' + users[
-    'new_last_name'].str.replace('.', '', regex=True) + '@fake_domain.com'
-users['new_username'] = users['new_username'].replace({' ': '.'}, regex=True)
-users['new_email'] = users['new_username']
+    # Create replace dicts for site_user_fields
 
-# Create replace dicts for site_user_fields
+    emails_dict = replace_dict(users['email'], users['new_email'])
+    names_dict = replace_dict(users['full_name'].replace({'\(': '', '\)': ''}, regex=True),
+                              users['new_full_name'])
 
-emails_dict = replace_dict(users['email'], users['new_email'])
-names_dict = replace_dict(users['full_name'].replace({'\(': '', '\)': ''}, regex=True),
-                          users['new_full_name'])
+    # Clean PEARS users export
 
-# Clean PEARS users export
+    cleaned_users = users[
+        ['user_id', 'new_username', 'new_email', 'new_full_name', 'unit', 'program_area', 'viewable_units',
+         'is_active']]
+    cleaned_users.columns = cleaned_users.columns.str.replace("new_", "")
 
-cleaned_users = users[
-    ['user_id', 'new_username', 'new_email', 'new_full_name', 'unit', 'program_area', 'viewable_units',
-     'is_active']]
-cleaned_users.columns = cleaned_users.columns.str.replace("new_", "")
+    cleaned_users_filename = test_pears_dir + 'User_Export.xlsx'
 
-cleaned_users_filename = test_pears_dir + 'User_Export.xlsx'
+    shutil.copyfile(export_dir + 'User_Export.xlsx', cleaned_users_filename)
+    overwrite_excel(cleaned_users_filename, ['User Data'], [cleaned_users])
 
-shutil.copyfile(export_dir + 'User_Export.xlsx', cleaned_users_filename)
-overwrite_excel(cleaned_users_filename, cleaned_users, 'User Data')
+    # Delete other tabs
+    delete_sheets(cleaned_users_filename, ['Program Area Team Members', 'Quarterly Effort Report Checkup'])
 
-# Delete other tabs
-delete_sheets(cleaned_users_filename, ['Program Area Team Members', 'Quarterly Effort Report Checkup'])
+    # Clean sites export
 
-# Clean sites export
+    sites_src = export_dir + 'Site_Export.xlsx'
+    sites_dst = test_pears_dir + 'Site_Export.xlsx'
+    shutil.copyfile(sites_src, sites_dst)
 
-sites_src = export_dir + 'Site_Export.xlsx'
-sites_dst = test_pears_dir + 'Site_Export.xlsx'
-shutil.copyfile(sites_src, sites_dst)
+    cleaned_sites = pd.read_excel(sites_src, sheet_name='Site Data')
 
-cleaned_sites = pd.read_excel(sites_src, sheet_name='Site Data')
+    site_user_fields = ['created_by', 'created_by_email', 'modified_by']
 
-site_user_fields = ['created_by', 'created_by_email', 'modified_by']
+    for field in site_user_fields:
+        if field == 'created_by_email':
+            cleaned_sites[field] = cleaned_sites[field].replace(emails_dict, regex=True)
+        else:
+            cleaned_sites[field] = cleaned_sites[field].replace({'\(': '', '\)': ''}, regex=True).replace(names_dict,
+                                                                                                          regex=True)
 
-for field in site_user_fields:
-    if field == 'created_by_email':
-        cleaned_sites[field] = cleaned_sites[field].replace(emails_dict, regex=True)
-    else:
-        cleaned_sites[field] = cleaned_sites[field].replace({'\(': '', '\)': ''}, regex=True).replace(names_dict,
-                                                                                                      regex=True)
+    cleaned_sites = cleaned_sites.loc[~cleaned_sites['created_by_email'].str.contains('canopyteam', na=False)]
 
-cleaned_sites = cleaned_sites.loc[~cleaned_sites['created_by_email'].str.contains('canopyteam', na=False)]
+    cleaned_sites.loc[~cleaned_sites['modified_by'].isin(users['new_full_name']) &
+                      ((cleaned_sites['modified_by'] != '') | cleaned_sites[
+                          'modified_by'].notnull()), 'modified_by'] = ''
 
-cleaned_sites.loc[~cleaned_sites['modified_by'].isin(users['new_full_name']) &
-                  ((cleaned_sites['modified_by'] != '') | cleaned_sites[
-                      'modified_by'].notnull()), 'modified_by'] = ''
+    contact_fields = ['contact_name', 'contact_email', 'contact_phone']
 
-contact_fields = ['contact_name', 'contact_email', 'contact_phone']
+    for field in contact_fields:
+        cleaned_sites[field] = ''
 
-for field in contact_fields:
-    cleaned_sites[field] = ''
+    site_fields = ['site_name', 'address', 'latitude', 'longitude']
 
-site_fields = ['site_name', 'address', 'latitude', 'longitude']
+    # Create fake data for site_fields
 
-# Create fake data for site_fields
+    # Subset schools
+    cleaned_schools = cleaned_sites.loc[~(cleaned_sites['site_name'].str.contains('District', na=False)) &
+                                        (cleaned_sites['setting'] == 'Schools (K-12, elementary, middle, and high)')]
 
-# Subset schools
-cleaned_schools = cleaned_sites.loc[~(cleaned_sites['site_name'].str.contains('District', na=False)) &
-                                    (cleaned_sites['setting'] == 'Schools (K-12, elementary, middle, and high)')]
+    cleaned_schools = join_fake_sites(cleaned_schools, site_fields, 'school')
 
-cleaned_schools = join_fake_sites(cleaned_schools, site_fields, 'school')
+    # Subset districts
+    cleaned_districts = cleaned_sites.loc[(cleaned_sites['site_name'].str.contains('District', na=False)) &
+                                          (cleaned_sites['setting'] == 'Schools (K-12, elementary, middle, and high)')]
 
-# Subset districts
-cleaned_districts = cleaned_sites.loc[(cleaned_sites['site_name'].str.contains('District', na=False)) &
-                                      (cleaned_sites['setting'] == 'Schools (K-12, elementary, middle, and high)')]
+    cleaned_districts = join_fake_sites(cleaned_districts, site_fields, 'district')
 
-cleaned_districts = join_fake_sites(cleaned_districts, site_fields, 'district')
+    # Subset all other sites
+    cleaned_sites = cleaned_sites.loc[~cleaned_sites['site_id'].isin(cleaned_schools['site_id']) &
+                                      ~cleaned_sites['site_id'].isin(cleaned_districts['site_id'])]
 
-# Subset all other sites
-cleaned_sites = cleaned_sites.loc[~cleaned_sites['site_id'].isin(cleaned_schools['site_id']) &
-                                  ~cleaned_sites['site_id'].isin(cleaned_districts['site_id'])]
+    cleaned_sites = join_fake_sites(cleaned_sites, site_fields, 'site')
 
-cleaned_sites = join_fake_sites(cleaned_sites, site_fields, 'site')
+    cleaned_sites = pd.concat([cleaned_sites, cleaned_schools, cleaned_districts])
 
-cleaned_sites = pd.concat([cleaned_sites, cleaned_schools, cleaned_districts])
+    # merge parent_site_name using parent_site_id
+    cleaned_sites = sub_fake_data(cleaned_sites,
+                                  'parent_site_name',
+                                  cleaned_sites[['site_id',
+                                                 'site_name']].rename(columns={'site_id': 'parent_site_id',
+                                                                               'site_name': 'parent_site_name'}),
+                                  'parent_site_id')
 
-# merge parent_site_name using parent_site_id
-cleaned_sites = sub_fake_data(cleaned_sites,
-                              'parent_site_name',
-                              cleaned_sites[['site_id',
-                                             'site_name']].rename(columns={'site_id': 'parent_site_id',
-                                                                           'site_name': 'parent_site_name'}),
-                              'parent_site_id')
+    cleaned_sites['comment'] = ''
 
-cleaned_sites['comment'] = ''
+    # Demographics tab, 'site_name'
 
-overwrite_excel(sites_dst, cleaned_sites, 'Site Data')
+    cleaned_demo = pd.read_excel(sites_src, sheet_name='Demographics')
 
-# Demographics tab, 'site_name'
+    cleaned_demo = sub_fake_data(cleaned_demo, 'site_name', cleaned_sites[['site_id', 'site_name']], 'site_id')
 
-cleaned_demo = pd.read_excel(sites_src, sheet_name='Demographics')
+    overwrite_excel(sites_dst, ['Site Data', 'Demographics'], [cleaned_sites, cleaned_demo])
 
-cleaned_demo = sub_fake_data(cleaned_demo, 'site_name', cleaned_sites[['site_id', 'site_name']], 'site_id')
+    # Clean import modules
 
-overwrite_excel(sites_dst, cleaned_demo, 'Demographics')
+    collaborators = Submodule('Collaborators', user_fields=['user'], site_fields=[])
 
-# Clean import modules
+    # Default field lists
+    user_fields = ['reported_by', 'reported_by_email', 'updated_by', 'collaborators']
+    site_fields = ['site_name', 'site_address', 'site_latitude', 'site_longitude']
 
-collaborators = Submodule('Collaborators', user_fields=['user'], site_fields=[])
+    program_activities = Module('Program_Activities',
+                                [
+                                    Submodule('Program Activity Data',
+                                              user_fields=['reported_by', 'reported_by_email', 'collaborators',
+                                                           'contributors'],
+                                              site_fields=site_fields,
+                                              text_fields=['name', 'copied_from', 'comments'],
+                                              numeric_fields=['participants_total', 'number_sessions']),
+                                    Submodule('Sessions', numeric_fields=['num_participants']),
+                                    collaborators
+                                ])
 
-# Default field lists
-user_fields = ['reported_by', 'reported_by_email', 'updated_by', 'collaborators']
-site_fields = ['site_name', 'site_address', 'site_latitude', 'site_longitude']
+    indirect_activities = Module('Indirect_Activity',
+                                 [
+                                     Submodule('Indirect Activity Data',
+                                               user_fields=user_fields,
+                                               text_fields=['comments', 'title']),
+                                     Submodule('Intervention Channels',
+                                               site_fields=site_fields,
+                                               numeric_fields=['reach']),
+                                     collaborators
+                                 ])
 
-program_activities = Module('Program_Activities',
-                            [
-                                Submodule('Program Activity Data',
-                                          user_fields=['reported_by', 'reported_by_email', 'collaborators',
-                                                       'contributors'],
-                                          site_fields=site_fields,
-                                          text_fields=['name', 'copied_from', 'comments'],
-                                          numeric_fields=['participants_total', 'number_sessions']),
-                                Submodule('Sessions', numeric_fields=['num_participants']),
-                                collaborators
-                            ])
+    partnerships = Module('Partnership',
+                          [
+                              Submodule('Partnership Data',
+                                        user_fields=user_fields,
+                                        site_fields=site_fields,
+                                        text_fields=['partnership_name', 'copied_from', 'comment', 'accomplishments',
+                                                     'lessons_learned']),
+                              Submodule('Meetings',
+                                        text_fields=['event_title', 'notes'],
+                                        numeric_fields=['attendance']),
+                              collaborators
+                          ])
 
-indirect_activities = Module('Indirect_Activity',
+    coalitions = Module('Coalition',
+                        [
+                            Submodule('Coalition Data',
+                                      user_fields=user_fields,
+                                      text_fields=['coalition_name', 'event_title', 'comment', 'accomplishments',
+                                                   'copied_from'],
+                                      numeric_fields=['number_of_members']),
+                            Submodule('Members', site_fields=site_fields, text_fields=['name', 'role_and_resources']),
+                            Submodule('Meetings',
+                                      text_fields=['event_title', 'notes'],
+                                      numeric_fields=['attendance']),
+                            collaborators
+                        ])
+
+    pse_site_activities = Module('PSE_Site_Activity',
+                                 [
+                                     Submodule('PSE Data',
+                                               user_fields=['reported_by', 'reported_by_email', 'collaborators',
+                                                            'contributors'],
+                                               site_fields=['site_name', 'site_address'],
+                                               text_fields=['name', 'copied_from', 'comments', 'contribution_notes',
+                                                            'other_changes_made',
+                                                            'additional_barriers_or_facilitators',
+                                                            'influence_on_future_pse_work',
+                                                            'improvements_or_changes'],
+                                               numeric_fields=['total_reach']),
+                                     Submodule('Needs, Readiness, Effectiveness',
+                                               text_fields=['baseline_results', 'follow_up_results']),
+                                     Submodule('Recognition and Media Coverage',
+                                               text_fields=['name', 'recognizing_body', 'link_or_reference']),
+                                     collaborators
+                                 ])
+
+    success_stories = Module('Success_Story',
                              [
-                                 Submodule('Indirect Activity Data',
+                                 Submodule('Success Story Data',
                                            user_fields=user_fields,
-                                           text_fields=['comments', 'title']),
-                                 Submodule('Intervention Channels',
-                                           site_fields=site_fields,
-                                           numeric_fields=['reach']),
-                                 collaborators
-                             ])
-
-partnerships = Module('Partnership',
-                      [
-                          Submodule('Partnership Data',
-                                    user_fields=user_fields,
-                                    site_fields=site_fields,
-                                    text_fields=['partnership_name', 'copied_from', 'comment', 'accomplishments',
-                                                 'lessons_learned']),
-                          Submodule('Meetings',
-                                    text_fields=['event_title', 'notes'],
-                                    numeric_fields=['attendance']),
-                          collaborators
-                      ])
-
-coalitions = Module('Coalition',
-                    [
-                        Submodule('Coalition Data',
-                                  user_fields=user_fields,
-                                  text_fields=['coalition_name', 'event_title', 'comment', 'accomplishments',
-                                               'copied_from'],
-                                  numeric_fields=['number_of_members']),
-                        Submodule('Members', site_fields=site_fields, text_fields=['name', 'role_and_resources']),
-                        Submodule('Meetings',
-                                  text_fields=['event_title', 'notes'],
-                                  numeric_fields=['attendance']),
-                        collaborators
-                    ])
-
-pse_site_activities = Module('PSE_Site_Activity',
-                             [
-                                 Submodule('PSE Data',
-                                           user_fields=['reported_by', 'reported_by_email', 'collaborators',
-                                                        'contributors'],
                                            site_fields=['site_name', 'site_address'],
-                                           text_fields=['name', 'copied_from', 'comments', 'contribution_notes',
-                                                        'other_changes_made',
-                                                        'additional_barriers_or_facilitators',
-                                                        'influence_on_future_pse_work',
-                                                        'improvements_or_changes'],
-                                           numeric_fields=['total_reach']),
-                                 Submodule('Needs, Readiness, Effectiveness',
-                                           text_fields=['baseline_results', 'follow_up_results']),
-                                 Submodule('Recognition and Media Coverage',
-                                           text_fields=['name', 'recognizing_body', 'link_or_reference']),
+                                           text_fields=['title', 'comments', 'background', 'story_narrative',
+                                                        'favorite_quote', 'program_activity']),
                                  collaborators
                              ])
 
-success_stories = Module('Success_Story',
-                         [
-                             Submodule('Success Story Data',
-                                       user_fields=user_fields,
-                                       site_fields=['site_name', 'site_address'],
-                                       text_fields=['title', 'comments', 'background', 'story_narrative',
-                                                    'favorite_quote', 'program_activity']),
-                             collaborators
-                         ])
+    import_modules = [program_activities, indirect_activities, partnerships, coalitions, pse_site_activities,
+                      success_stories]
 
-import_modules = [program_activities, indirect_activities, partnerships, coalitions, pse_site_activities,
-                  success_stories]
+    clean_module_exports(in_path=export_dir,
+                         out_path=test_pears_dir,
+                         import_modules=import_modules,
+                         emails_dict=emails_dict,
+                         names_dict=names_dict,
+                         fake_sites=cleaned_sites.rename(columns={'address': 'site_address',
+                                                                  'latitude': 'site_latitude',
+                                                                  'longitude': 'site_longitude'})[
+                             ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
 
-clean_module_exports(in_path=export_dir,
-                     out_path=test_pears_dir,
-                     import_modules=import_modules,
-                     emails_dict=emails_dict,
-                     names_dict=names_dict,
-                     fake_sites=cleaned_sites.rename(columns={'address': 'site_address',
-                                                              'latitude': 'site_latitude',
-                                                              'longitude': 'site_longitude'})[
-                         ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
+    # ASK PEARS TO EXPORT copy_from_id
 
-# ASK PEARS TO EXPORT copy_from_id
+    # # Clean staff list
+    #
+    # # Create fields for last name, first name, netid
+    #
+    # users['last_name'] = users['full_name'].str.split(pat=' ', n=1).str[1]
+    # users['first_name'] = users['full_name'].str.split(pat=' ', n=1).str[0]
+    # users['last_first'] = users['last_name'] + ', ' + users['first_name']
+    # users['netid'] = users['email'].replace({'@illinois.edu': '', '@uic.edu': ''}, regex=True)
 
-# # Clean staff list
-#
-# # Create fields for last name, first name, netid
-#
-# users['last_name'] = users['full_name'].str.split(pat=' ', n=1).str[1]
-# users['first_name'] = users['full_name'].str.split(pat=' ', n=1).str[0]
-# users['last_first'] = users['last_name'] + ', ' + users['first_name']
-# users['netid'] = users['email'].replace({'@illinois.edu': '', '@uic.edu': ''}, regex=True)
+    # # Create additional dicts
+    #
+    # first_names_dict = replace_dict(users['first_name'], users['new_first_name'])
+    # last_names_dict = replace_dict(users['last_name'], users['new_last_name'])
+    # last_first_dict = replace_dict(users['last_first'], users['new_last_first'])
+    # netids_dict = replace_dict(users['netid'], users['new_last_name'])
 
-# # Create additional dicts
-#
-# first_names_dict = replace_dict(users['first_name'], users['new_first_name'])
-# last_names_dict = replace_dict(users['last_name'], users['new_last_name'])
-# last_first_dict = replace_dict(users['last_first'], users['new_last_first'])
-# netids_dict = replace_dict(users['netid'], users['new_last_name'])
+    # # Copy staff list
+    #
+    # staff_src = r"C:\Users\jstadni2\Box\INEP Staff Lists\FY22 INEP Staff List.xlsx"
+    # staff_fp = test_inputs_dir + 'FY22_INEP_Staff_List.xlsx'
+    # shutil.copyfile(staff_src, staff_fp)
+    #
+    # # Create a function for cleaning the staff list
+    # staff_wb = openpyxl.load_workbook(staff_fp)
+    #
+    # with pd.ExcelWriter(staff_fp, engine='openpyxl', mode='w') as writer:
+    #     writer.book = staff_wb
+    #     writer.sheets = dict((ws.title, ws) for ws in staff_wb.worksheets)
+    #     # Iterate through all tabs
+    #     for sheet in writer.sheets:
+    #         ws = staff_wb[sheet]
+    #         # Unlock sheet
+    #         ws.protection.disable()
+    #
+    #         data = ws.values
+    #
+    #         # Set header and remove filters  based on sheet name
+    #         columns = next(data)[0:]
+    #         if sheet in ['SNAP-Ed Staff List', 'HEAT Project Staff', 'FCS State Office', 'ISBE Staff List',
+    #                      'EFNEP Staff List']:
+    #             columns = next(data)[0:]
+    #         elif sheet == 'CPHP Staff List':
+    #             while columns[0] != 'Last Name':
+    #                 columns = next(data)[0:]
+    #
+    #         df = pd.DataFrame(data, columns=columns)
+    #
+    #         # Rename columns for specific sheets
+    #         if sheet == "RE's and CD's":
+    #             df = df.rename(columns={'NETID/E-MAIL': 'RE E-MAIL',
+    #                                     'E-MAIL': 'CD E-MAIL'})
+    #         if sheet == 'Former Staff':
+    #             df = df.rename(columns={'E-MAIL/NETID': 'NETID'})
+    #
+    #         # Iterate through all fields
+    #         for col in df.columns:
+    #             if col is None:
+    #                 continue
+    #             elif col == 'MISC/NOTES' or 'Phone' in col:
+    #                 df = df.drop(columns=col)
+    #             elif 'E-MAIL' in col or col == 'Email Address':
+    #                 df[col] = df[col].replace(emails_dict, regex=True)
+    #                 df = df.loc[df[col].str.contains('@fake_domain.com', na=False)]
+    #             elif col == 'NETID':
+    #                 df[col] = df[col].replace(netids_dict, regex=True)
+    #                 df = df.loc[df[col].isin(users['new_last_name'])]
+    #             elif col == 'Last Name':
+    #                 df[col] = df[col].replace(last_names_dict, regex=True)
+    #                 df = df.loc[df[col].isin(users['new_last_name'])]
+    #             elif col == 'First Name':
+    #                 df[col] = df[col].replace(first_names_dict, regex=True)
+    #                 # df = df.loc[df[col] == 'User']
+    #             elif col in ['NAME', 'REGIONAL EDUCATOR', 'COUNTY DIRECTOR']:
+    #                 df[col] = df[col].replace(last_first_dict, regex=True)
+    #                 # if col == 'NAME':
+    #                 df = df.loc[df[col].isin(users['new_last_first'])]
+    #         ws.delete_cols(1, ws.max_column)
+    #         ws.delete_rows(1, ws.max_row)
+    #         # Clear formats
+    #         remove_format(ws)
+    #         if len(ws.tables.items()) != 0:
+    #             del ws.tables[ws.tables.items()[0][0]]
+    #         # Add reformatted data to sheet
+    #         df.to_excel(writer, sheet_name=sheet, index=False)
+    #         # Use original sheet's style formatting
+    #         # font = Font(bold=False)
+    #         # fill = PatternFill(fill_type='solid', fgColor='00C0C0C0')
+    #         # border = Border(bottom=Side(border_style=None, color='FF000000'))
+    #         # for c in ws["1:1"]:
+    #         #     c.font = font
+    #         #     c.fill = fill
+    #         #     c.border = border
+    #
+    # # Manual operations:
+    # # Clear formats
+    #
+    # # Clean FY 2021 PEARS Exports
+    #
+    # fy_21_src = r"C:\Users\jstadni2\Box\FCS Data Analyst\Data Backups\PEARS\FY21\22.08.08 Manual Export"
+    # fy_21_dst = r"\FY21"
+    #
+    # clean_module_exports(fy_21_src,
+    #                      test_pears_dir + fy_21_dst,
+    #                      import_modules,
+    #                      emails_dict,
+    #                      names_dict,
+    #                      cleaned_sites.rename(columns={'address': 'site_address',
+    #                                                    'latitude': 'site_latitude',
+    #                                                    'longitude': 'site_longitude'})[
+    #                          ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
+    #
+    # # Clean PEARS Coalition Survey Exports
+    #
+    # coalition_survey_dir = r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\coalition_survey_exports"
+    #
+    # quarters = ['Q1', 'Q2', 'Q3']
+    # coalition_surveys = [Module('Coalition_Survey_' + q,
+    #                             [
+    #                                 Submodule('Response Data',
+    #                                           user_fields=['Program Entered By'],
+    #                                           text_fields=['Program Name', 'coalition_name',
+    #                                                        'Please list any other goals your coalition is working '
+    #                                                        'towards which do not fit under any of the goals listed '
+    #                                                        'above.',
+    #                                                        # Since the following fields are manually entered, some
+    #                                                        # values remain when input as user_fields
+    #                                                        'staff_name',
+    #                                                        'staff_email'])
+    #                                 # missed my user_fields cleaning because label isn't 'reported_by_email'
+    #                             ]) for q in quarters]
+    #
+    # # Create a separate function for cleaning/generating survey response data?
+    # # make optional arg
+    # clean_module_exports(coalition_survey_dir,
+    #                      r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\fakepearsdata\cleaned_data\coalition_survey_exports",
+    #                      coalition_surveys, emails_dict,
+    #                      names_dict,
+    #                      cleaned_sites.rename(columns={'address': 'site_address',
+    #                                                    'latitude': 'site_latitude',
+    #                                                    'longitude': 'site_longitude'})[
+    #                          ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']]
+    #                      )
 
-# # Copy staff list
-#
-# staff_src = r"C:\Users\jstadni2\Box\INEP Staff Lists\FY22 INEP Staff List.xlsx"
-# staff_fp = test_inputs_dir + 'FY22_INEP_Staff_List.xlsx'
-# shutil.copyfile(staff_src, staff_fp)
-#
-# # Create a function for cleaning the staff list
-# staff_wb = openpyxl.load_workbook(staff_fp)
-#
-# with pd.ExcelWriter(staff_fp, engine='openpyxl', mode='w') as writer:
-#     writer.book = staff_wb
-#     writer.sheets = dict((ws.title, ws) for ws in staff_wb.worksheets)
-#     # Iterate through all tabs
-#     for sheet in writer.sheets:
-#         ws = staff_wb[sheet]
-#         # Unlock sheet
-#         ws.protection.disable()
-#
-#         data = ws.values
-#
-#         # Set header and remove filters  based on sheet name
-#         columns = next(data)[0:]
-#         if sheet in ['SNAP-Ed Staff List', 'HEAT Project Staff', 'FCS State Office', 'ISBE Staff List',
-#                      'EFNEP Staff List']:
-#             columns = next(data)[0:]
-#         elif sheet == 'CPHP Staff List':
-#             while columns[0] != 'Last Name':
-#                 columns = next(data)[0:]
-#
-#         df = pd.DataFrame(data, columns=columns)
-#
-#         # Rename columns for specific sheets
-#         if sheet == "RE's and CD's":
-#             df = df.rename(columns={'NETID/E-MAIL': 'RE E-MAIL',
-#                                     'E-MAIL': 'CD E-MAIL'})
-#         if sheet == 'Former Staff':
-#             df = df.rename(columns={'E-MAIL/NETID': 'NETID'})
-#
-#         # Iterate through all fields
-#         for col in df.columns:
-#             if col is None:
-#                 continue
-#             elif col == 'MISC/NOTES' or 'Phone' in col:
-#                 df = df.drop(columns=col)
-#             elif 'E-MAIL' in col or col == 'Email Address':
-#                 df[col] = df[col].replace(emails_dict, regex=True)
-#                 df = df.loc[df[col].str.contains('@fake_domain.com', na=False)]
-#             elif col == 'NETID':
-#                 df[col] = df[col].replace(netids_dict, regex=True)
-#                 df = df.loc[df[col].isin(users['new_last_name'])]
-#             elif col == 'Last Name':
-#                 df[col] = df[col].replace(last_names_dict, regex=True)
-#                 df = df.loc[df[col].isin(users['new_last_name'])]
-#             elif col == 'First Name':
-#                 df[col] = df[col].replace(first_names_dict, regex=True)
-#                 # df = df.loc[df[col] == 'User']
-#             elif col in ['NAME', 'REGIONAL EDUCATOR', 'COUNTY DIRECTOR']:
-#                 df[col] = df[col].replace(last_first_dict, regex=True)
-#                 # if col == 'NAME':
-#                 df = df.loc[df[col].isin(users['new_last_first'])]
-#         ws.delete_cols(1, ws.max_column)
-#         ws.delete_rows(1, ws.max_row)
-#         # Clear formats
-#         remove_format(ws)
-#         if len(ws.tables.items()) != 0:
-#             del ws.tables[ws.tables.items()[0][0]]
-#         # Add reformatted data to sheet
-#         df.to_excel(writer, sheet_name=sheet, index=False)
-#         # Use original sheet's style formatting
-#         # font = Font(bold=False)
-#         # fill = PatternFill(fill_type='solid', fgColor='00C0C0C0')
-#         # border = Border(bottom=Side(border_style=None, color='FF000000'))
-#         # for c in ws["1:1"]:
-#         #     c.font = font
-#         #     c.fill = fill
-#         #     c.border = border
-#
-# # Manual operations:
-# # Clear formats
-#
-# # Clean FY 2021 PEARS Exports
-#
-# fy_21_src = r"C:\Users\jstadni2\Box\FCS Data Analyst\Data Backups\PEARS\FY21\22.08.08 Manual Export"
-# fy_21_dst = r"\FY21"
-#
-# clean_module_exports(fy_21_src,
-#                      test_pears_dir + fy_21_dst,
-#                      import_modules,
-#                      emails_dict,
-#                      names_dict,
-#                      cleaned_sites.rename(columns={'address': 'site_address',
-#                                                    'latitude': 'site_latitude',
-#                                                    'longitude': 'site_longitude'})[
-#                          ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
-#
-# # Clean PEARS Coalition Survey Exports
-#
-# coalition_survey_dir = r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\coalition_survey_exports"
-#
-# quarters = ['Q1', 'Q2', 'Q3']
-# coalition_surveys = [Module('Coalition_Survey_' + q,
-#                             [
-#                                 Submodule('Response Data',
-#                                           user_fields=['Program Entered By'],
-#                                           text_fields=['Program Name', 'coalition_name',
-#                                                        'Please list any other goals your coalition is working '
-#                                                        'towards which do not fit under any of the goals listed '
-#                                                        'above.',
-#                                                        # Since the following fields are manually entered, some
-#                                                        # values remain when input as user_fields
-#                                                        'staff_name',
-#                                                        'staff_email'])
-#                                 # missed my user_fields cleaning because label isn't 'reported_by_email'
-#                             ]) for q in quarters]
-#
-# # Create a separate function for cleaning/generating survey response data?
-# # make optional arg
-# clean_module_exports(coalition_survey_dir,
-#                      r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\fakepearsdata\cleaned_data\coalition_survey_exports",
-#                      coalition_surveys, emails_dict,
-#                      names_dict,
-#                      cleaned_sites.rename(columns={'address': 'site_address',
-#                                                    'latitude': 'site_latitude',
-#                                                    'longitude': 'site_longitude'})[
-#                          ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']]
-#                      )
+
+if __name__ == '__main__':
+    main()
