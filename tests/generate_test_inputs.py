@@ -20,7 +20,7 @@ EXPORT_DIR = PY_PEARS_DIR + '/pears_exports/'
 TEST_INPUTS_DIR = ROOT_DIR + '/tests/test_inputs/'
 TEST_INPUTS_PEARS_DIR = TEST_INPUTS_DIR + 'pears/'
 TEST_INPUTS_PEARS_PREV_YEAR_DIR = TEST_INPUTS_PEARS_DIR + 'prev_year/'
-TEST_INPUTS_PEARS_COALITION_SURVEY_EXPORTS_DIR = TEST_INPUTS_PEARS_DIR + 'coalition_survey_exports/'
+TEST_COALITION_SURVEY_EXPORTS_DIR = TEST_INPUTS_PEARS_DIR + 'coalition_survey_exports/'
 
 # Faker settings
 fake = Faker()
@@ -318,8 +318,9 @@ def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
 # staff_src
 # pears_prev_year_dir
 # test_inputs_pears_prev_year_dir
-# test_inputs_coalition_surveys_dir
-def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
+# test_coalition_surveys_dir
+def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR,
+         test_coalition_surveys_dir=TEST_COALITION_SURVEY_EXPORTS_DIR):
 
     creds = utils.load_credentials()
 
@@ -577,9 +578,6 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
 
     # Clean PEARS Coalition Survey Exports
 
-    coalition_survey_dir = r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\coalition_survey_exports"
-
-    quarters = ['Q1', 'Q2', 'Q3']
     coalition_surveys = [Module('Coalition_Survey_' + q,
                                 [
                                     Submodule('Response Data',
@@ -593,12 +591,12 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
                                                            'staff_name',
                                                            'staff_email'])
                                     # missed my user_fields cleaning because label isn't 'reported_by_email'
-                                ]) for q in quarters]
+                                ]) for q in ['Q1', 'Q2', 'Q3', 'Q4']]
 
     # Create a separate function for cleaning/generating survey response data?
     # make optional arg
-    clean_module_exports(coalition_survey_dir,
-                         r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\fakepearsdata\cleaned_data\coalition_survey_exports",
+    clean_module_exports(creds['coalition_survey_exports'],
+                         test_coalition_surveys_dir,
                          coalition_surveys, emails_dict,
                          names_dict,
                          cleaned_sites.rename(columns={'address': 'site_address',
