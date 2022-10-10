@@ -136,13 +136,16 @@ if compare_date(day=20):
 
 # Run Coalition Survey Cleaning with default inputs
 if compare_date_quarterly(days=[12, 23]):
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              modules=['Coalition'])
     coalition_survey_cleaning.main(creds=creds,
-                                   export_dir=EXPORT_DIR,
-                                   output_dir=OUT_DIR,
+                                   coalitions_export=EXPORT_DIR + "Coalition_Export.xlsx",
                                    coalition_surveys_dir=TEST_INPUTS_PEARS_COA_SURVEYS_DIR,
                                    staff_list=staff_list,
                                    unit_counties=unit_counties,
-                                   update_notifications=update_notifications)
+                                   update_notifications=update_notifications,
+                                   output_dir=OUT_DIR)
 
 # Run Quarterly Program Evaluation with default inputs
 if compare_date_quarterly(days=[13]):

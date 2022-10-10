@@ -6,42 +6,36 @@ import py_pears.utils as utils
 
 # Run the Coalition Survey Cleaning report
 # creds: dict of credentials loaded from credentials.json
-# export_dir: directory where PEARS exports are downloaded to
-# output_dir: directory where report outputs are saved
+# coalitions_export: path to PEARS export of Coalitions
 # coalition_surveys_dir: string for the directory where PEARS Coalition Survey exports are stored
 # staff_list: path to the staff list Excel workbook
 # unit_counties: path to a workbook that maps counties to Extension units
 # update_notifications: path to a workbook that compiles the update notifications
+# output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
 # notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
 # former_staff_report_recipients: list-like string of email addresses for recipients of the former staff corrections
 def main(creds,
-         export_dir,
-         output_dir,
+         coalitions_export,
          coalition_surveys_dir,
          staff_list,
          unit_counties,
          update_notifications,
+         output_dir,
          send_emails=False,
          notification_cc='',
          report_cc='',
          report_recipients='',
          former_staff_report_recipients=''):
 
-    # Download required PEARS exports from S3
-    utils.download_s3_exports(profile=creds['aws_profile'],
-                              org=creds['s3_organization'],
-                              dst=export_dir,
-                              modules=['Coalition'])
-
     # Custom fields that require reformatting
     # Only needed for multi-select dropdowns
     custom_field_labels = ['fcs_program_team', 'snap_ed_grant_goals', 'fcs_grant_goals', 'fcs_special_projects',
                            'snap_ed_special_projects']
 
-    coa_export = pd.ExcelFile(export_dir + "Coalition_Export.xlsx")
+    coa_export = pd.ExcelFile(coalitions_export)
     coa_data = pd.read_excel(coa_export, 'Coalition Data')
     # create a utils function for removing _custom_data from column labels
     coa_data = utils.reformat(coa_data, custom_field_labels)  # this is only necessary for the on_hiatus field
@@ -58,9 +52,6 @@ def main(creds,
     # Using manual filename convention
     coa_surveys = pd.read_excel(coalition_surveys_dir + "Coalition_Survey_" + fq + "_Export.xlsx",
                                 sheet_name='Response Data')
-    # Default PEARS survey export convention
-    # coa_surveys = pd.read_excel(coalition_surveys_dir + "Responses By Survey - Coalition Survey - " + fq + ".xlsx",
-                                # sheet_name='Response Data')
 
     # filter Responses By Survey by Completed == ---- to export all responses
     coa_surveys = utils.select_pears_data(coa_surveys,
