@@ -93,13 +93,24 @@ if compare_date(day=11):
 
 # Run Monthly Data Cleaning with default inputs
 if compare_date(day=12):
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              modules=['Coalition',
+                                       'Indirect_Activity',
+                                       'Partnership',
+                                       'Program_Activities',
+                                       'PSE_Site_Activity'])
     monthly_data_cleaning.main(creds=creds,
-                               export_dir=EXPORT_DIR,
-                               output_dir=OUT_DIR,
+                               coalitions_export=EXPORT_DIR + "Coalition_Export.xlsx",
+                               indirect_activities_export=EXPORT_DIR + "Indirect_Activity_Export.xlsx",
+                               partnerships_export=EXPORT_DIR + "Partnership_Export.xlsx",
+                               program_activities_export=EXPORT_DIR + "Program_Activities_Export.xlsx",
+                               pse_site_activities_export=EXPORT_DIR + "PSE_Site_Activity_Export.xlsx",
                                staff_list=staff_list,
                                names_list=names_list,
                                unit_counties=unit_counties,
-                               update_notifications=update_notifications)
+                               update_notifications=update_notifications,
+                               output_dir=OUT_DIR)
 
 # Run Monthly Partnerships Entry with default inputs
 if compare_date(day=20):

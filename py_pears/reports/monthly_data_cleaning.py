@@ -116,39 +116,37 @@ def write_corrections_report(report_dict, file_path):
 
 # Run the Monthly Data Cleaning report
 # creds: dict of credentials loaded from credentials.json
-# export_dir: directory where PEARS exports are downloaded to
-# output_dir: directory where report outputs are saved
+# coalitions_export: path to PEARS export of Coalitions
+# indirect_activities_export: path to PEARS export of Indirect Activities
+# partnerships_export: path to PEARS export of Partnerships
+# program_activities_export: path to PEARS export of Program Activities
+# pse_site_activities_export: path to PEARS export of PSE Site Activities
 # staff_list: path to the staff list Excel workbook
 # names_list: path to a text file containing names used to flag the Name field of Coalition Member records
 # unit_counties: path to a workbook that maps counties to Extension units
 # update_notifications: path to a workbook that compiles the update notifications
+# output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
 # notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
 # former_staff_recipients: list-like string of email addresses for recipients of the former staff corrections email
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
 def main(creds,
-         export_dir,
-         output_dir,
+         coalitions_export,
+         indirect_activities_export,
+         partnerships_export,
+         program_activities_export,
+         pse_site_activities_export,
          staff_list,
          names_list,
          unit_counties,
          update_notifications,
+         output_dir,
          send_emails=False,
          notification_cc='',
          former_staff_recipients='',
          report_cc='',
          report_recipients=''):
-
-    # Download required PEARS exports from S3
-    utils.download_s3_exports(profile=creds['aws_profile'],
-                              org=creds['s3_organization'],
-                              modules=['User',
-                                       'Program_Activities',
-                                       'Indirect_Activity',
-                                       'Coalition',
-                                       'Partnership',
-                                       'PSE_Site_Activity'])
 
     # Import and consolidate staff lists
     # Data cleaning is only conducted on records related to SNAP-Ed and Family Consumer Science programming
@@ -194,7 +192,7 @@ def main(creds,
                            'snap_ed_special_projects']
 
     # Import Coalitions data and Coalition Members
-    coalitions_export = pd.ExcelFile(export_dir + "Coalition_Export.xlsx")
+    coalitions_export = pd.ExcelFile(coalitions_export)
     coa_data = pd.read_excel(coalitions_export, 'Coalition Data')
     coa_data = utils.reformat(coa_data, custom_field_labels)
     # Only data clean records for SNAP-Ed
@@ -214,7 +212,7 @@ def main(creds,
     il_names = il_names.astype(str) + ' '
 
     # Import Indirect Activity data and Intervention Channels
-    indirect_activities_export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
+    indirect_activities_export = pd.ExcelFile(indirect_activities_export)
     ia_data = pd.read_excel(indirect_activities_export, 'Indirect Activity Data')
     ia_data = utils.reformat(ia_data, custom_field_labels)
     # Only data clean records for SNAP-Ed
@@ -222,7 +220,7 @@ def main(creds,
     ia_ic = pd.read_excel(indirect_activities_export, 'Intervention Channels')
 
     # Import Partnerships data
-    partnerships_export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
+    partnerships_export = pd.ExcelFile(partnerships_export)
     part_data = pd.read_excel(partnerships_export, 'Partnership Data')
     part_data = utils.reformat(part_data, custom_field_labels)
     # Only data clean records for SNAP-Ed
@@ -233,7 +231,7 @@ def main(creds,
                                   former_snap_ed_staff['email']))]  # Filtering for former staff will include transfers
 
     # Import Program Activity data and Sessions
-    program_activities_export = pd.ExcelFile(export_dir + "program_activities_export.xlsx")
+    program_activities_export = pd.ExcelFile(program_activities_export)
     pa_data = pd.read_excel(program_activities_export, 'Program Activity Data')
     pa_data = utils.reformat(pa_data, custom_field_labels)
     # Subset Program Activities for Family Consumer Science
@@ -243,7 +241,7 @@ def main(creds,
     pa_sessions = pd.read_excel(program_activities_export, 'Sessions')
 
     # Import PSE Site Activity data, Needs, Readiness, Effectiveness, and Changes
-    pse_site_activities_export = pd.ExcelFile(export_dir + "PSE_Site_Activity_Export.xlsx")
+    pse_site_activities_export = pd.ExcelFile(pse_site_activities_export)
     pse_data = pd.read_excel(pse_site_activities_export, 'PSE Data')
     pse_data = utils.reformat(pse_data, custom_field_labels)
     pse_nre = pd.read_excel(pse_site_activities_export, 'Needs, Readiness, Effectiveness')
