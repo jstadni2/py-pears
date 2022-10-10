@@ -69,3 +69,11 @@ partnerships_entry.main(creds=creds,
                         unit_counties=unit_counties,
                         prev_year_part_export=TEST_INPUTS_PEARS_PREV_YEAR_DIR + 'Partnership_Export.xlsx',
                         output_dir=EXPECTED_OUTPUTS_DIR)
+
+coalition_survey_cleaning.main(creds=creds,
+                               coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                               coalition_surveys_dir=TEST_COALITION_SURVEY_EXPORTS_DIR,
+                               staff_list=staff_list,
+                               unit_counties=unit_counties,
+                               update_notifications=update_notifications,
+                               output_dir=EXPECTED_OUTPUTS_DIR)
