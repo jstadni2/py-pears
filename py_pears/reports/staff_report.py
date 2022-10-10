@@ -213,20 +213,8 @@ def main(creds,
          extension_report_recipients='',
          cphp_report_recipients=''):
 
-    # Download required PEARS exports from S3
-    utils.download_s3_exports(profile=creds['aws_profile'],
-                              org=creds['s3_organization'],
-                              modules=['User',
-                                       'Program_Activities',
-                                       'Indirect_Activity',
-                                       'Coalition',
-                                       'Partnership',
-                                       'PSE_Site_Activity',
-                                       'Success_Story'])
-
     # Import SNAP-Ed staff
 
-    # TEMPORARILY importing Staff List in /tests/test_inputs
     inep_staff = pd.ExcelFile(staff_list)
     # Adjust header argument below for actual staff list
     snap_ed_staff = pd.read_excel(inep_staff, sheet_name='SNAP-Ed Staff List', header=0)

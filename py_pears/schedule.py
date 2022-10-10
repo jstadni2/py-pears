@@ -73,8 +73,13 @@ if compare_date(day=2):
 if compare_date(day=11):
     utils.download_s3_exports(profile=creds['aws_profile'],
                               org=creds['s3_organization'],
-                              dst=EXPORT_DIR,
-                              modules=['Site', 'User'])
+                              modules=['User',
+                                       'Program_Activities',
+                                       'Indirect_Activity',
+                                       'Coalition',
+                                       'Partnership',
+                                       'PSE_Site_Activity',
+                                       'Success_Story'])
     staff_report.main(creds=creds,
                       users_export=EXPORT_DIR + "User_Export.xlsx",
                       program_activities_export=EXPORT_DIR + "Program_Activities_Export.xlsx",
