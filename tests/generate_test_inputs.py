@@ -250,7 +250,7 @@ def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
 
     staff_wb = openpyxl.load_workbook(test_staff_list)
 
-    # Iterate through all tabs
+    # Iterate through all sheets
     for sheet in staff_wb.sheetnames:
         ws = staff_wb[sheet]
         # Unlock sheet
@@ -258,11 +258,7 @@ def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
 
         data = ws.values
 
-        # if sheet in ['SNAP-Ed Staff List', 'ISBE Staff List', 'EFNEP Staff List']:
-        #     staff_wb.remove(ws)
-        #     continue
-
-        # Set header and remove filters based on sheet name
+        # Set column labels based on sheet name
         columns = next(data)[0:]
         if sheet in ['SNAP-Ed Staff List', 'HEAT Project Staff', 'FCS State Office', 'ISBE Staff List',
                      'EFNEP Staff List']:
@@ -272,6 +268,7 @@ def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
                 columns = next(data)[0:]
 
         df = pd.DataFrame(data, columns=columns)
+        df = df[df.columns.drop(list(df.filter(regex='Column')))]
 
         # Rename columns for specific sheets
         if sheet == "RE's and CD's":
@@ -303,8 +300,10 @@ def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
                 # if col == 'NAME':
                 df = df.loc[df[col].isin(users['new_last_first'])]
 
-        ws.delete_cols(1, ws.max_column)
-        ws.delete_rows(1, ws.max_row)
+        # Remove old sheet, create new one with updated data
+        staff_wb.remove(ws)
+        staff_wb.create_sheet(sheet)
+        ws = staff_wb[sheet]
 
         rows = dataframe_to_rows(df, index=False)
         for row in rows:
@@ -557,12 +556,8 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
     staff_fp = test_inputs_dir + 'FY23_INEP_Staff_List.xlsx'
     shutil.copyfile(creds['staff_list'], staff_fp)
 
-    # Unreadable data line 2, column 79?
-    # clean_staff_list(staff_fp, emails_dict, netids_dict, users,
-    #                  last_names_dict, first_names_dict, last_first_dict)
-
-    # Manual operations:
-    # Clear formats
+    clean_staff_list(staff_fp, emails_dict, netids_dict, users,
+                     last_names_dict, first_names_dict, last_first_dict)
 
     # Clean FY 2021 PEARS Exports
 
