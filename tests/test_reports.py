@@ -114,11 +114,11 @@ def test_compare_workbooks_false():
 def test_sites_report():
     diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
     sites_report.main(creds=creds,
-                      sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",  # Generate with Faker
-                      users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",  # Generate with Faker
+                      sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",
+                      users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",
                       output_dir=ACTUAL_OUTPUTS_DIR)
     result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',  # Generate with module
+                               xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
                                diff_filename=ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx')
     assert result is True
     # Report output changed if diff exists

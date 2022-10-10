@@ -71,7 +71,20 @@ if compare_date(day=2):
 
 # Run Staff Report with default inputs
 if compare_date(day=11):
-    staff_report.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR, staff_list=staff_list)
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              dst=EXPORT_DIR,
+                              modules=['Site', 'User'])
+    staff_report.main(creds=creds,
+                      users_export=EXPORT_DIR + "User_Export.xlsx",
+                      program_activities_export=EXPORT_DIR + "Program_Activities_Export.xlsx",
+                      indirect_activities_export=EXPORT_DIR + "Indirect_Activity_Export.xlsx",
+                      coalitions_export=EXPORT_DIR + "Coalition_Export.xlsx",
+                      partnerships_export=EXPORT_DIR + "Partnership_Export.xlsx",
+                      pse_site_activities_export=EXPORT_DIR + "PSE_Site_Activity_Export.xlsx",
+                      success_stories_export=EXPORT_DIR + "Success_Story_Export.xlsx",
+                      staff_list=staff_list,
+                      output_dir=OUT_DIR)
 
 # Run Monthly Data Cleaning with default inputs
 if compare_date(day=12):

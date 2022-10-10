@@ -184,18 +184,30 @@ def save_staff_report(dfs, file_path, agency='Extension'):
 
 # Run the Staff Report
 # creds: dict of credentials loaded from credentials.json
-# export_dir: directory where PEARS exports are downloaded to
-# output_dir: directory where report outputs are saved
+# users_export: path to PEARS export of Users
+# program_activities_export: path to PEARS export of Program Activities
+# indirect_activities_export: path to PEARS export of Indirect Activities
+# coalitions_export: path to PEARS export of Coalitions
+# partnerships_export: path to PEARS export of Partnerships
+# pse_site_activities_export: path to PEARS export of PSE Site Activities
+# success_stories_export: path to PEARS export of Success Stories
 # staff_list: path to the staff list Excel workbook
+# output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
 # report_cc: list-like string of email addresses to cc on the report email
 # extension_report_recipients: list-like string of email addresses for recipients of the SNAP-Ed staff report email
 # cphp_report_recipients: list-like string of email addresses for recipients of the CPHP staff report email
 # UPDATE: make main() take a dict/object of implementing agencies and recipients
 def main(creds,
-         export_dir,
-         output_dir,
+         users_export,
+         program_activities_export,
+         indirect_activities_export,
+         coalitions_export,
+         partnerships_export,
+         pse_site_activities_export,
+         success_stories_export,
          staff_list,
+         output_dir,
          send_emails=False,
          report_cc='',
          extension_report_recipients='',
@@ -215,16 +227,16 @@ def main(creds,
     # Import SNAP-Ed staff
 
     # TEMPORARILY importing Staff List in /tests/test_inputs
-    fy22_inep_staff = pd.ExcelFile(staff_list)
+    inep_staff = pd.ExcelFile(staff_list)
     # Adjust header argument below for actual staff list
-    snap_ed_staff = pd.read_excel(fy22_inep_staff, sheet_name='SNAP-Ed Staff List', header=0)
+    snap_ed_staff = pd.read_excel(inep_staff, sheet_name='SNAP-Ed Staff List', header=0)
     snap_ed_staff['NAME'] = snap_ed_staff['NAME'].str.strip()
     snap_ed_staff['E-MAIL'] = snap_ed_staff['E-MAIL'].str.strip()
 
     # Import CPHP staff
 
     # Adjust header argument below for actual staff list
-    cphp_staff = pd.read_excel(fy22_inep_staff, sheet_name='CPHP Staff List', header=0).rename(
+    cphp_staff = pd.read_excel(inep_staff, sheet_name='CPHP Staff List', header=0).rename(
         columns={'Last Name': 'last_name',
                  'First Name': 'first_name',
                  'Email Address': 'email'})
@@ -234,19 +246,19 @@ def main(creds,
 
     # Import PEARS users
 
-    pears_users = pd.read_excel(export_dir + "User_Export.xlsx", sheet_name='User Data')
+    pears_users = pd.read_excel(users_export, sheet_name='User Data')
     pears_users = pears_users.loc[pears_users['is_active'] == 1]
 
     # Refactor this data and for loop using the Module class?
     # Desired modules to report on
     # 'Excel_File', 'Sheet Name'
 
-    import_modules = [['Program_Activities', 'Program Activity Data'],
-                      ['Indirect_Activity', 'Indirect Activity Data'],
-                      ['Coalition', 'Coalition Data'],
-                      ['Partnership', 'Partnership Data'],
-                      ['PSE_Site_Activity', 'PSE Data'],
-                      ['Success_Story', 'Success Story Data']]
+    import_modules = [[program_activities_export, 'Program Activity Data'],
+                      [indirect_activities_export, 'Indirect Activity Data'],
+                      [coalitions_export, 'Coalition Data'],
+                      [partnerships_export, 'Partnership Data'],
+                      [pse_site_activities_export, 'PSE Data'],
+                      [success_stories_export, 'Success Story Data']]
 
     # Id column labels for each module in import_modules
 
@@ -257,7 +269,7 @@ def main(creds,
     module_dfs = []
 
     for index, item in enumerate(import_modules):
-        wb = pd.ExcelFile(export_dir + item[0] + "_Export.xlsx")
+        wb = pd.ExcelFile(item[0])
         # Record creation data
         # Module records aggregated by the user specified in the 'reported_by' field
         create_df = pd.read_excel(wb, item[1])
