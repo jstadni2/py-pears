@@ -58,3 +58,14 @@ monthly_data_cleaning.main(creds=creds,
                            unit_counties=unit_counties,
                            update_notifications=update_notifications,
                            output_dir=EXPECTED_OUTPUTS_DIR)
+
+partnerships_entry.main(creds=creds,
+                        users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",
+                        sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",
+                        program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                        indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                        partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                        staff_list=staff_list,
+                        unit_counties=unit_counties,
+                        prev_year_part_export=TEST_INPUTS_PEARS_PREV_YEAR_DIR + 'Partnership_Export.xlsx',
+                        output_dir=EXPECTED_OUTPUTS_DIR)
