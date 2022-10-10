@@ -22,7 +22,12 @@ TEST_COALITION_SURVEY_EXPORTS_DIR = TEST_INPUTS_PEARS_DIR + 'coalition_survey_ex
 
 EXPECTED_OUTPUTS_DIR = ROOT_DIR + '/tests/expected_outputs/'
 
+# Set paths to external data inputs
 staff_list = TEST_INPUTS_DIR + 'FY23_INEP_Staff_List.xlsx'
+names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
+unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
+update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
+
 
 creds = utils.load_credentials()
 
@@ -41,3 +46,15 @@ staff_report.main(creds=creds,
                   success_stories_export=TEST_INPUTS_PEARS_DIR + "Success_Story_Export.xlsx",
                   staff_list=staff_list,
                   output_dir=EXPECTED_OUTPUTS_DIR)
+
+monthly_data_cleaning.main(creds=creds,
+                           coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                           indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                           partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                           program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                           pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
+                           staff_list=staff_list,
+                           names_list=names_list,
+                           unit_counties=unit_counties,
+                           update_notifications=update_notifications,
+                           output_dir=EXPECTED_OUTPUTS_DIR)
