@@ -114,12 +114,23 @@ if compare_date(day=12):
 
 # Run Monthly Partnerships Entry with default inputs
 if compare_date(day=20):
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              modules=['User',
+                                       'Site',
+                                       'Program_Activities',
+                                       'Indirect_Activity',
+                                       'Partnership'])
     partnerships_entry.main(creds=creds,
-                            export_dir=EXPORT_DIR,
-                            output_dir=OUT_DIR,
+                            users_export=EXPORT_DIR + "User_Export.xlsx",
+                            sites_export=EXPORT_DIR + "Site_Export.xlsx",
+                            program_activities_export=EXPORT_DIR + "Program_Activities_Export.xlsx",
+                            indirect_activities_export=EXPORT_DIR + "Indirect_Activity_Export.xlsx",
+                            partnerships_export=EXPORT_DIR + "Partnership_Export.xlsx",
                             staff_list=staff_list,
                             unit_counties=unit_counties,
-                            prev_year_part_export=TEST_INPUTS_PEARS_PREV_YEAR_DIR + 'Partnership_Export.xlsx')
+                            prev_year_part_export=TEST_INPUTS_PEARS_PREV_YEAR_DIR + 'Partnership_Export.xlsx',
+                            output_dir=OUT_DIR)
 
 # Quarterly Reports
 

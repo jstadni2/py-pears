@@ -5,45 +5,43 @@ import py_pears.utils as utils
 
 # Run the Partnerships Entry report
 # creds: dict of credentials loaded from credentials.json
-# export_dir: directory where PEARS exports are downloaded to
-# output_dir: directory where report outputs are saved
+# users_export: path to PEARS export of Users
+# sites_export: path to PEARS export of Sites
+# program_activities_export: path to PEARS export of Program Activities
+# indirect_activities_export: path to PEARS export of Indirect Activities
+# partnerships_export: path to PEARS export of Partnerships
 # staff_list: path to the staff list Excel workbook
 # unit_counties: path to a workbook that maps counties to Extension units
 # prev_year_part_export: path to PEARS export of Partnerships from the previous report year
+# output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
 def main(creds,
-         export_dir,
-         output_dir,
+         users_export,
+         sites_export,
+         program_activities_export,
+         indirect_activities_export,
+         partnerships_export,
          staff_list,
          unit_counties,
+         output_dir,
          prev_year_part_export,
          send_emails=False,
          report_cc='',
          report_recipients=''):
-
-    # Download required PEARS exports from S3
-    utils.download_s3_exports(profile=creds['aws_profile'],
-                              org=creds['s3_organization'],
-                              dst=export_dir,
-                              modules=['User',
-                                       'Site',
-                                       'Program_Activities',
-                                       'Indirect_Activity',
-                                       'Partnership'])
 
     # Custom fields that require reformatting
     # Only needed for multi-select dropdowns
     custom_field_labels = ['fcs_program_team', 'snap_ed_grant_goals', 'fcs_grant_goals', 'fcs_special_projects',
                            'snap_ed_special_projects']
 
-    pa_export = pd.ExcelFile(export_dir + "Program_Activities_Export.xlsx")
+    pa_export = pd.ExcelFile(program_activities_export)
     pa_data = pd.read_excel(pa_export, 'Program Activity Data')
     pa_data = utils.reformat(pa_data, custom_field_labels)
     pa_data = pa_data.loc[pa_data['program_areas'] == 'SNAP-Ed']
 
-    ia_export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
+    ia_export = pd.ExcelFile(indirect_activities_export)
     ia_data = pd.read_excel(ia_export, 'Indirect Activity Data')
     ia_data = utils.reformat(ia_data, custom_field_labels)
     ia_data = ia_data.loc[ia_data['program_area'] == 'SNAP-Ed']
@@ -51,10 +49,10 @@ def main(creds,
     ia_ic = utils.select_pears_data(ia_ic, record_name_field='activity')
     ia_ic_data = pd.merge(ia_data, ia_ic, how='inner', on='activity_id')
 
-    sites = pd.read_excel(export_dir + "Site_Export.xlsx", sheet_name='Site Data')
+    sites = pd.read_excel(sites_export, sheet_name='Site Data')
     sites = sites.loc[sites['is_active'] == 1]
 
-    part_export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
+    part_export = pd.ExcelFile(partnerships_export)
     part_data = pd.read_excel(part_export, 'Partnership Data')
     part_data = utils.reformat(part_data, custom_field_labels)
     part_data = part_data.loc[part_data['program_area'] == 'SNAP-Ed']
@@ -64,7 +62,7 @@ def main(creds,
 
     fy22_inep_staff = pd.read_excel(staff_list,
                                     sheet_name='SNAP-Ed Staff List')
-    user_export = pd.read_excel(export_dir + "User_Export.xlsx", sheet_name='User Data')
+    user_export = pd.read_excel(users_export, sheet_name='User Data')
 
     # Import lookup table for counties to unit
     unit_counties = pd.read_excel(unit_counties,
