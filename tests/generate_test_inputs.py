@@ -99,7 +99,7 @@ def join_fake_sites(sites, site_fields, site_type):
 # Helper function to replace Excel sheet with dataframe
 def overwrite_sheet(file_name, book, sheet, df):
     if sheet not in book.sheetnames:
-        raise Exception('sheet: ' + sheet + ' not found in Excel Workbook')
+        raise Exception('sheet: ' + sheet + ' not found in Excel Workbook: ' + file_name)
 
     ws = book[sheet]
     ws.delete_cols(1, ws.max_column)
@@ -245,13 +245,81 @@ def remove_format(ws):
             cell.border = Border(bottom=Side(border_style=None, color='FF000000'))
 
 
+def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
+                     last_names_dict, first_names_dict, last_first_dict):
+
+    staff_wb = openpyxl.load_workbook(test_staff_list)
+
+    # Iterate through all tabs
+    for sheet in staff_wb.sheetnames:
+        ws = staff_wb[sheet]
+        # Unlock sheet
+        ws.protection.disable()
+
+        data = ws.values
+
+        # if sheet in ['SNAP-Ed Staff List', 'ISBE Staff List', 'EFNEP Staff List']:
+        #     staff_wb.remove(ws)
+        #     continue
+
+        # Set header and remove filters based on sheet name
+        columns = next(data)[0:]
+        if sheet in ['SNAP-Ed Staff List', 'HEAT Project Staff', 'FCS State Office', 'ISBE Staff List',
+                     'EFNEP Staff List']:
+            columns = next(data)[0:]
+        elif sheet == 'CPHP Staff List':
+            while columns[0] != 'Last Name':
+                columns = next(data)[0:]
+
+        df = pd.DataFrame(data, columns=columns)
+
+        # Rename columns for specific sheets
+        if sheet == "RE's and CD's":
+            df = df.rename(columns={'NETID/E-MAIL': 'RE E-MAIL',
+                                    'E-MAIL': 'CD E-MAIL'})
+        if sheet == 'Former Staff':
+            df = df.rename(columns={'E-MAIL/NETID': 'NETID'})
+
+        # Iterate through all fields
+        for col in df.columns:
+            if col is None:
+                continue
+            elif col == 'MISC/NOTES' or 'Phone' in col:
+                df = df.drop(columns=col)
+            elif 'E-MAIL' in col or col == 'Email Address':
+                df[col] = df[col].replace(emails_dict, regex=True)
+                df = df.loc[df[col].str.contains('@fake_domain.com', na=False)]
+            elif col == 'NETID':
+                df[col] = df[col].replace(netids_dict, regex=True)
+                df = df.loc[df[col].isin(users['new_last_name'])]
+            elif col == 'Last Name':
+                df[col] = df[col].replace(last_names_dict, regex=True)
+                df = df.loc[df[col].isin(users['new_last_name'])]
+            elif col == 'First Name':
+                df[col] = df[col].replace(first_names_dict, regex=True)
+                # df = df.loc[df[col] == 'User']
+            elif col in ['NAME', 'REGIONAL EDUCATOR', 'COUNTY DIRECTOR']:
+                df[col] = df[col].replace(last_first_dict, regex=True)
+                # if col == 'NAME':
+                df = df.loc[df[col].isin(users['new_last_first'])]
+
+        ws.delete_cols(1, ws.max_column)
+        ws.delete_rows(1, ws.max_row)
+
+        rows = dataframe_to_rows(df, index=False)
+        for row in rows:
+            ws.append(row)
+
+    staff_wb.save(test_staff_list)
+
+
 # test_pears_dir: the target directory for PEARS imports
 # test_inputs_dir=TEST_INPUTS_DIR
 # staff_src
 # pears_prev_year_dir
 # test_inputs_pears_prev_year_dir
 # test_inputs_coalition_surveys_dir
-def main(export_dir=EXPORT_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
+def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
 
     creds = utils.load_credentials()
 
@@ -261,7 +329,6 @@ def main(export_dir=EXPORT_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
                               dst=export_dir)
 
     # Import Users export
-
     users = pd.read_excel(export_dir + 'User_Export.xlsx',
                           sheet_name='User Data')[
         ['user_id', 'username', 'email', 'full_name', 'unit', 'program_area', 'viewable_units', 'is_active']]
@@ -468,150 +535,77 @@ def main(export_dir=EXPORT_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR):
                                                                   'longitude': 'site_longitude'})[
                              ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
 
-    # ASK PEARS TO EXPORT copy_from_id
+    # Clean staff list
 
-    # # Clean staff list
-    #
-    # # Create fields for last name, first name, netid
-    #
-    # users['last_name'] = users['full_name'].str.split(pat=' ', n=1).str[1]
-    # users['first_name'] = users['full_name'].str.split(pat=' ', n=1).str[0]
-    # users['last_first'] = users['last_name'] + ', ' + users['first_name']
-    # users['netid'] = users['email'].replace({'@illinois.edu': '', '@uic.edu': ''}, regex=True)
+    # Create fields for last name, first name, netid
 
-    # # Create additional dicts
-    #
-    # first_names_dict = replace_dict(users['first_name'], users['new_first_name'])
-    # last_names_dict = replace_dict(users['last_name'], users['new_last_name'])
-    # last_first_dict = replace_dict(users['last_first'], users['new_last_first'])
-    # netids_dict = replace_dict(users['netid'], users['new_last_name'])
+    users['last_name'] = users['full_name'].str.split(pat=' ', n=1).str[1]
+    users['first_name'] = users['full_name'].str.split(pat=' ', n=1).str[0]
+    users['last_first'] = users['last_name'] + ', ' + users['first_name']
+    users['netid'] = users['email'].replace({'@illinois.edu': '', '@uic.edu': ''}, regex=True)
 
-    # # Copy staff list
-    #
-    # staff_src = r"C:\Users\jstadni2\Box\INEP Staff Lists\FY22 INEP Staff List.xlsx"
-    # staff_fp = test_inputs_dir + 'FY22_INEP_Staff_List.xlsx'
-    # shutil.copyfile(staff_src, staff_fp)
-    #
-    # # Create a function for cleaning the staff list
-    # staff_wb = openpyxl.load_workbook(staff_fp)
-    #
-    # with pd.ExcelWriter(staff_fp, engine='openpyxl', mode='w') as writer:
-    #     writer.book = staff_wb
-    #     writer.sheets = dict((ws.title, ws) for ws in staff_wb.worksheets)
-    #     # Iterate through all tabs
-    #     for sheet in writer.sheets:
-    #         ws = staff_wb[sheet]
-    #         # Unlock sheet
-    #         ws.protection.disable()
-    #
-    #         data = ws.values
-    #
-    #         # Set header and remove filters  based on sheet name
-    #         columns = next(data)[0:]
-    #         if sheet in ['SNAP-Ed Staff List', 'HEAT Project Staff', 'FCS State Office', 'ISBE Staff List',
-    #                      'EFNEP Staff List']:
-    #             columns = next(data)[0:]
-    #         elif sheet == 'CPHP Staff List':
-    #             while columns[0] != 'Last Name':
-    #                 columns = next(data)[0:]
-    #
-    #         df = pd.DataFrame(data, columns=columns)
-    #
-    #         # Rename columns for specific sheets
-    #         if sheet == "RE's and CD's":
-    #             df = df.rename(columns={'NETID/E-MAIL': 'RE E-MAIL',
-    #                                     'E-MAIL': 'CD E-MAIL'})
-    #         if sheet == 'Former Staff':
-    #             df = df.rename(columns={'E-MAIL/NETID': 'NETID'})
-    #
-    #         # Iterate through all fields
-    #         for col in df.columns:
-    #             if col is None:
-    #                 continue
-    #             elif col == 'MISC/NOTES' or 'Phone' in col:
-    #                 df = df.drop(columns=col)
-    #             elif 'E-MAIL' in col or col == 'Email Address':
-    #                 df[col] = df[col].replace(emails_dict, regex=True)
-    #                 df = df.loc[df[col].str.contains('@fake_domain.com', na=False)]
-    #             elif col == 'NETID':
-    #                 df[col] = df[col].replace(netids_dict, regex=True)
-    #                 df = df.loc[df[col].isin(users['new_last_name'])]
-    #             elif col == 'Last Name':
-    #                 df[col] = df[col].replace(last_names_dict, regex=True)
-    #                 df = df.loc[df[col].isin(users['new_last_name'])]
-    #             elif col == 'First Name':
-    #                 df[col] = df[col].replace(first_names_dict, regex=True)
-    #                 # df = df.loc[df[col] == 'User']
-    #             elif col in ['NAME', 'REGIONAL EDUCATOR', 'COUNTY DIRECTOR']:
-    #                 df[col] = df[col].replace(last_first_dict, regex=True)
-    #                 # if col == 'NAME':
-    #                 df = df.loc[df[col].isin(users['new_last_first'])]
-    #         ws.delete_cols(1, ws.max_column)
-    #         ws.delete_rows(1, ws.max_row)
-    #         # Clear formats
-    #         remove_format(ws)
-    #         if len(ws.tables.items()) != 0:
-    #             del ws.tables[ws.tables.items()[0][0]]
-    #         # Add reformatted data to sheet
-    #         df.to_excel(writer, sheet_name=sheet, index=False)
-    #         # Use original sheet's style formatting
-    #         # font = Font(bold=False)
-    #         # fill = PatternFill(fill_type='solid', fgColor='00C0C0C0')
-    #         # border = Border(bottom=Side(border_style=None, color='FF000000'))
-    #         # for c in ws["1:1"]:
-    #         #     c.font = font
-    #         #     c.fill = fill
-    #         #     c.border = border
-    #
-    # # Manual operations:
-    # # Clear formats
-    #
-    # # Clean FY 2021 PEARS Exports
-    #
-    # fy_21_src = r"C:\Users\jstadni2\Box\FCS Data Analyst\Data Backups\PEARS\FY21\22.08.08 Manual Export"
-    # fy_21_dst = r"\FY21"
-    #
-    # clean_module_exports(fy_21_src,
-    #                      test_pears_dir + fy_21_dst,
-    #                      import_modules,
-    #                      emails_dict,
-    #                      names_dict,
-    #                      cleaned_sites.rename(columns={'address': 'site_address',
-    #                                                    'latitude': 'site_latitude',
-    #                                                    'longitude': 'site_longitude'})[
-    #                          ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
-    #
-    # # Clean PEARS Coalition Survey Exports
-    #
-    # coalition_survey_dir = r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\coalition_survey_exports"
-    #
-    # quarters = ['Q1', 'Q2', 'Q3']
-    # coalition_surveys = [Module('Coalition_Survey_' + q,
-    #                             [
-    #                                 Submodule('Response Data',
-    #                                           user_fields=['Program Entered By'],
-    #                                           text_fields=['Program Name', 'coalition_name',
-    #                                                        'Please list any other goals your coalition is working '
-    #                                                        'towards which do not fit under any of the goals listed '
-    #                                                        'above.',
-    #                                                        # Since the following fields are manually entered, some
-    #                                                        # values remain when input as user_fields
-    #                                                        'staff_name',
-    #                                                        'staff_email'])
-    #                                 # missed my user_fields cleaning because label isn't 'reported_by_email'
-    #                             ]) for q in quarters]
-    #
-    # # Create a separate function for cleaning/generating survey response data?
-    # # make optional arg
-    # clean_module_exports(coalition_survey_dir,
-    #                      r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\fakepearsdata\cleaned_data\coalition_survey_exports",
-    #                      coalition_surveys, emails_dict,
-    #                      names_dict,
-    #                      cleaned_sites.rename(columns={'address': 'site_address',
-    #                                                    'latitude': 'site_latitude',
-    #                                                    'longitude': 'site_longitude'})[
-    #                          ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']]
-    #                      )
+    # Create additional dicts
+
+    first_names_dict = replace_dict(users['first_name'], users['new_first_name'])
+    last_names_dict = replace_dict(users['last_name'], users['new_last_name'])
+    last_first_dict = replace_dict(users['last_first'], users['new_last_first'])
+    netids_dict = replace_dict(users['netid'], users['new_last_name'])
+
+    # Copy staff list
+
+    staff_fp = test_inputs_dir + 'FY23_INEP_Staff_List.xlsx'
+    shutil.copyfile(creds['staff_list'], staff_fp)
+
+    # Unreadable data line 2, column 79?
+    # clean_staff_list(staff_fp, emails_dict, netids_dict, users,
+    #                  last_names_dict, first_names_dict, last_first_dict)
+
+    # Manual operations:
+    # Clear formats
+
+    # Clean FY 2021 PEARS Exports
+
+    clean_module_exports(creds['pears_prev_year'],
+                         test_pears_dir + 'prev_year/',
+                         import_modules,
+                         emails_dict,
+                         names_dict,
+                         cleaned_sites.rename(columns={'address': 'site_address',
+                                                       'latitude': 'site_latitude',
+                                                       'longitude': 'site_longitude'})[
+                             ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']])
+
+    # Clean PEARS Coalition Survey Exports
+
+    coalition_survey_dir = r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\coalition_survey_exports"
+
+    quarters = ['Q1', 'Q2', 'Q3']
+    coalition_surveys = [Module('Coalition_Survey_' + q,
+                                [
+                                    Submodule('Response Data',
+                                              user_fields=['Program Entered By'],
+                                              text_fields=['Program Name', 'coalition_name',
+                                                           'Please list any other goals your coalition is working '
+                                                           'towards which do not fit under any of the goals listed '
+                                                           'above.',
+                                                           # Since the following fields are manually entered, some
+                                                           # values remain when input as user_fields
+                                                           'staff_name',
+                                                           'staff_email'])
+                                    # missed my user_fields cleaning because label isn't 'reported_by_email'
+                                ]) for q in quarters]
+
+    # Create a separate function for cleaning/generating survey response data?
+    # make optional arg
+    clean_module_exports(coalition_survey_dir,
+                         r"C:\Users\jstadni2\Box\FCS Data Analyst\GitHub Repos\fakepearsdata\cleaned_data\coalition_survey_exports",
+                         coalition_surveys, emails_dict,
+                         names_dict,
+                         cleaned_sites.rename(columns={'address': 'site_address',
+                                                       'latitude': 'site_latitude',
+                                                       'longitude': 'site_longitude'})[
+                             ['site_id', 'site_name', 'site_address', 'site_latitude', 'site_longitude']]
+                         )
 
 
 if __name__ == '__main__':
