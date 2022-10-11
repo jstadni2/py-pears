@@ -228,3 +228,19 @@ def test_coalition_survey_cleaning():
     assert result is True
     assert os.path.isfile(diff) is False
 
+
+def test_quarterly_program_evaluation():
+    quarterly_program_evaluation.main(coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                                      indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                                      partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                                      program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                                      pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
+                                      output_dir=ACTUAL_OUTPUTS_DIR)
+    report_filename = quarterly_program_evaluation.report_filename()
+    diff = ACTUAL_OUTPUTS_DIR + 'quarterly_program_evaluation_diff.xlsx'
+    result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename,
+                               xlsx2=EXPECTED_OUTPUTS_DIR + report_filename,
+                               diff_filename=diff)
+    assert result is True
+    assert os.path.isfile(diff) is False
+

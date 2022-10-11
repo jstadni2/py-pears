@@ -4,6 +4,18 @@ from functools import reduce
 import py_pears.utils as utils
 
 
+# Report all four quarters, if previous month isn't the end of a quarter
+fq_df = utils.previous_fq(columns=['fq', 'fq_int'])
+fq = fq_df['fq'].item()
+fq_int = fq_df['fq_int'].item()
+
+
+# report: 'corrections' or 'former staff'
+# UPDATE use utils.current_fy() once implemented
+def report_filename():
+    return 'DHS Report FY2022 ' + fq + '.xlsx'
+
+
 # Assign and explode records by quarter
 # df: dataframe of module export sheet records
 # qtr_bounds: list of date strings for the lower/upper bounds of each quarter
@@ -399,19 +411,10 @@ def main(coalitions_export,
 
     report_dfs = [goals_sites_reach, pa_demo, re_aim_reach, re_aim_adoption, re_aim_implementation]
 
-    # Check if previous month is the last in the quarter
-    prev_month = utils.previous_month(return_type='%m')
-    fq_lookup = pd.DataFrame({'fq': [1, 2, 3, 4], 'month': ['12', '03', '06', '09']})
-    if prev_month in fq_lookup['month']:
-        current_fq = fq_lookup.loc[fq_lookup['month'] == prev_month, 'fq'].item()
-    # If not, report all four quarters
-    else:
-        current_fq = 4
-
-    utils.write_report(file=output_dir + 'DHS Report FY2022 Q' + str(current_fq) + '.xlsx',
+    utils.write_report(file=output_dir + report_filename(),
                        sheet_names=['Unique Sites and Reach by Goal',
                                     'Direct Education Demographics',
                                     'RE-AIM Reach',
                                     'RE-AIM Adoption',
                                     'RE-AIM Implementation'],
-                       dfs=filter_fq(report_dfs, current_fq))
+                       dfs=filter_fq(report_dfs, fq_int))

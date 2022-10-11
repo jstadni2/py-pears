@@ -76,9 +76,9 @@ coalition_survey_cleaning.main(creds=creds,
                                update_notifications=update_notifications,
                                output_dir=EXPECTED_OUTPUTS_DIR)
 
-quarterly_program_evaluation.main(coalitions_export=EXPORT_DIR + "Coalition_Export.xlsx",
-                                  indirect_activities_export=EXPORT_DIR + "Indirect_Activity_Export.xlsx",
-                                  partnerships_export=EXPORT_DIR + "Partnership_Export.xlsx",
-                                  program_activities_export=EXPORT_DIR + "Program_Activities_Export.xlsx",
-                                  pse_site_activities_export=EXPORT_DIR + "PSE_Site_Activity_Export.xlsx",
+quarterly_program_evaluation.main(coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                                  indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                                  partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                                  program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                                  pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
                                   output_dir=EXPECTED_OUTPUTS_DIR)
