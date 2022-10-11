@@ -4,6 +4,15 @@ import smtplib
 import py_pears.utils as utils
 
 
+# report: 'corrections' or 'former staff'
+def report_filename(report='corrections'):
+    prev_month_str = utils.previous_month(return_type='%Y-%m')
+    if report == 'corrections':
+        return 'Monthly PEARS Corrections ' + prev_month_str + '.xlsx'
+    elif report == 'former staff':
+        return 'Former Staff PEARS Updates ' + prev_month_str + '.xlsx'
+
+
 # functions for reordering comma-separated name
 # df: dataframe of staff list
 # name_field: column label of name field
@@ -933,7 +942,7 @@ def main(creds,
 
     # Export the Corrections Report as an Excel file
 
-    corrections_report_filename = 'Monthly PEARS Corrections ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    corrections_report_filename = report_filename(report='corrections')
     corrections_report_path = output_dir + '/' + corrections_report_filename
 
     write_corrections_report(report_dict={'Corrections Summary': corrections_sums,
@@ -1097,7 +1106,7 @@ def main(creds,
                              'PSE': utils.staff_corrections(pse_corrections_email,
                                                             former_staff=former_staff)}
 
-        former_staff_filename = 'Former Staff PEARS Updates ' + prev_month.strftime('%Y-%m') + '.xlsx'
+        former_staff_filename = report_filename(report='former staff')
         former_staff_path = output_dir + '/' + former_staff_filename
 
         # UPDATE utils.write_report() TO ACCEPT DICT
