@@ -77,20 +77,19 @@ def filter_fq(dfs, fq):
     return filtered_dfs
 
 
-# Run the Sites Report
-# creds: dict of credentials loaded from credentials.json
-# export_dir: directory where PEARS exports are downloaded to
+# Run the Quarterly Program Evaluation Report
+# coalitions_export: path to PEARS export of Coalitions
+# indirect_activities_export: path to PEARS export of Indirect Activities
+# partnerships_export: path to PEARS export of Partnerships
+# program_activities_export: path to PEARS export of Program Activities
+# pse_site_activities_export: path to PEARS export of PSE Site Activities
 # output_dir: directory where report outputs are saved
-def main(creds, export_dir, output_dir):
-    # Download required PEARS exports from S3
-    utils.download_s3_exports(profile=creds['aws_profile'],
-                              org=creds['s3_organization'],
-                              dst=export_dir,
-                              modules=['Program_Activities',
-                                       'Indirect_Activity',
-                                       'Coalition',
-                                       'Partnership',
-                                       'PSE_Site_Activity'])
+def main(coalitions_export,
+         indirect_activities_export,
+         partnerships_export,
+         program_activities_export,
+         pse_site_activities_export,
+         output_dir):
 
     # Custom fields that require reformatting
     # Only needed for multi-select dropdowns
@@ -98,7 +97,7 @@ def main(creds, export_dir, output_dir):
                            'snap_ed_special_projects']
 
     # Import Indirect Activity data and Intervention Channels
-    indirect_activities_export = pd.ExcelFile(export_dir + "Indirect_Activity_Export.xlsx")
+    indirect_activities_export = pd.ExcelFile(indirect_activities_export)
     ia_export = pd.read_excel(indirect_activities_export, 'Indirect Activity Data')
     # Only report on records for SNAP-Ed
     ia_data = ia_export.loc[
@@ -106,7 +105,7 @@ def main(creds, export_dir, output_dir):
     ia_ic_export = pd.read_excel(indirect_activities_export, 'Intervention Channels')
 
     # Import Coalitions data and Coalition Members
-    coalitions_export = pd.ExcelFile(export_dir + "Coalition_Export.xlsx")
+    coalitions_export = pd.ExcelFile(coalitions_export)
     coa_export = pd.read_excel(coalitions_export, 'Coalition Data')
     # Only report on records for SNAP-Ed
     coa_data = coa_export.loc[
@@ -115,7 +114,7 @@ def main(creds, export_dir, output_dir):
     coa_members_export = pd.read_excel(coalitions_export, 'Members')
 
     # Import Program Activity data and Sessions
-    program_activities_export = pd.ExcelFile(export_dir + "program_activities_export.xlsx")
+    program_activities_export = pd.ExcelFile(program_activities_export)
     pa_export = pd.read_excel(program_activities_export, 'Program Activity Data')
     # PA is only module to have cross-program_area collaboration
     pa_data = pa_export.loc[
@@ -124,14 +123,14 @@ def main(creds, export_dir, output_dir):
     pa_sessions_export = pd.read_excel(program_activities_export, 'Sessions')
 
     # Import Partnerships data
-    partnerships_export = pd.ExcelFile(export_dir + "Partnership_Export.xlsx")
+    partnerships_export = pd.ExcelFile(partnerships_export)
     part_export = pd.read_excel(partnerships_export, 'Partnership Data')
     # Only report on records for SNAP-Ed
     part_data = part_export.loc[(part_export['program_area'] == 'SNAP-Ed') & (
         ~part_export['partnership_name'].str.contains('(?i)TEST', regex=True))]
 
     # Import PSE Site Activity data, Needs, Readiness, Effectiveness, and Changes
-    pse_site_activities_export = pd.ExcelFile(export_dir + "PSE_Site_Activity_Export.xlsx")
+    pse_site_activities_export = pd.ExcelFile(pse_site_activities_export)
     pse_export = pd.read_excel(pse_site_activities_export, 'PSE Data')
     pse_data = pse_export.loc[~pse_export['name'].str.contains('(?i)TEST', regex=True, na=False)]
     pse_changes_export = pd.read_excel(pse_site_activities_export, 'Changes')

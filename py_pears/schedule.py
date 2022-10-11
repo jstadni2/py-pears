@@ -21,8 +21,8 @@ TEST_INPUTS_PEARS_DIR = TEST_INPUTS_DIR + '/pears/'
 TEST_INPUTS_PEARS_PREV_YEAR_DIR = TEST_INPUTS_PEARS_DIR + '/prev_year/'
 TEST_INPUTS_PEARS_COA_SURVEYS_DIR = TEST_INPUTS_PEARS_DIR + '/coalition_survey_exports/'
 
-# Set paths to external data inputs
-staff_list = TEST_INPUTS_DIR + 'FY22_INEP_Staff_List.xlsx'
+# Set following paths to external data inputs instead of test inputs
+staff_list = TEST_INPUTS_DIR + 'FY23_INEP_Staff_List.xlsx'
 names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
 unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
 update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
@@ -149,7 +149,19 @@ if compare_date_quarterly(days=[12, 23]):
 
 # Run Quarterly Program Evaluation with default inputs
 if compare_date_quarterly(days=[13]):
-    quarterly_program_evaluation.main(creds=creds, export_dir=EXPORT_DIR, output_dir=OUT_DIR)
+    utils.download_s3_exports(profile=creds['aws_profile'],
+                              org=creds['s3_organization'],
+                              modules=['Program_Activities',
+                                       'Indirect_Activity',
+                                       'Coalition',
+                                       'Partnership',
+                                       'PSE_Site_Activity'])
+    quarterly_program_evaluation.main(coalitions_export=EXPORT_DIR + "Coalition_Export.xlsx",
+                                      indirect_activities_export=EXPORT_DIR + "Indirect_Activity_Export.xlsx",
+                                      partnerships_export=EXPORT_DIR + "Partnership_Export.xlsx",
+                                      program_activities_export=EXPORT_DIR + "Program_Activities_Export.xlsx",
+                                      pse_site_activities_export=EXPORT_DIR + "PSE_Site_Activity_Export.xlsx",
+                                      output_dir=OUT_DIR)
 
 
 # Annual Reports
