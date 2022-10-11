@@ -27,7 +27,7 @@ def main(creds,
 
     # Sites Report
 
-    prev_month = utils.previous_month(return_type='')
+    prev_month = utils.previous_month(return_type='datetime')
     report_month_int = prev_month.month
     report_year_int = prev_month.year
 

@@ -6,7 +6,7 @@ import py_pears.utils as utils
 # Timestamp for day the report is run
 ts = pd.to_datetime("today").date()
 # PeriodArray/Index object for report month
-prev_month = utils.previous_month()
+prev_month = utils.previous_month(return_type='period')
 # Start date of the report period
 prev_month_lb = (ts.replace(day=1) - pd.DateOffset(months=1)).date()
 # End date of the report period

@@ -43,7 +43,7 @@ def main(creds,
     coa_data['coalition_id'] = coa_data['coalition_id'].astype(str)
 
     # UPDATE: Implement a try-catch and/or util function
-    prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1)).strftime('%m')
+    prev_month = utils.previous_month(return_type='%m')
     fq_lookup = pd.DataFrame({'fq': ['Q1', 'Q2', 'Q3', 'Q4'], 'month': ['12', '03', '06', '09'],
                               'survey_fq': ['Quarter 1 (October-December)', 'Quarter 2 (January-March)',
                                             'Quarter 3 (April-June)', 'Quarter 4 (July-September)']})

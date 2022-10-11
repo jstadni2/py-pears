@@ -257,7 +257,7 @@ def main(creds,
                      new_parts.pop('program_activity_comments'))
 
     # Create utils function for prev_month()
-    prev_month = utils.previous_month()
+    prev_month = utils.previous_month(return_type='period')
 
     # SNAP-Ed Workbook
 

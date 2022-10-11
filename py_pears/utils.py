@@ -108,13 +108,17 @@ def reformat(df, labels):
 
 
 # Return the previous month
-# return_type: if 'period', returns previous month as a datetime.period, return datetime otherwise (default: 'period')
-def previous_month(return_type='period'):
+# return_type: either 'datetime', 'period', '%m', '%Y-%m' (default: 'datetime')
+def previous_month(return_type='datetime'):
     prev_month = pd.to_datetime("today") - pd.DateOffset(months=1)
-    if return_type == 'period':
-        return prev_month.to_period('M')
-    else:
+    if return_type == 'datetime':
         return prev_month
+    elif return_type == 'period':
+        return prev_month.to_period('M')
+    elif return_type == '%m':
+        return prev_month.strftime('%m')
+    elif return_type == '%Y-%m':
+        return prev_month.strftime('%Y-%m')
 
 
 # Select records from PEARS module export
