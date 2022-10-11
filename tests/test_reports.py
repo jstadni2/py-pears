@@ -123,7 +123,7 @@ def test_sites_report():
                       sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",
                       users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",
                       output_dir=ACTUAL_OUTPUTS_DIR)
-    report_filename = 'PEARS Sites Report ' + utils.previous_month(return_type='%Y-%m') + '.xlsx'  # make function in each report?
+    report_filename = sites_report.report_filename()
     diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
     result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename,
                                xlsx2=EXPECTED_OUTPUTS_DIR + report_filename,
@@ -145,15 +145,15 @@ def test_staff_report():
                       staff_list=staff_list,
                       output_dir=ACTUAL_OUTPUTS_DIR)
     # CPHP Report
-    report_filename_cphp = 'CPHP Staff PEARS Entries ' + utils.previous_month(return_type='%Y-%m') + '.xlsx'
+    report_filename_cphp = staff_report.report_filename(agency='CPHP')
     diff_cphp = ACTUAL_OUTPUTS_DIR + 'staff_report_cphp_diff.xlsx'
     result_cphp = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename_cphp,
-                               xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_cphp,
-                               diff_filename=diff_cphp)
+                                    xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_cphp,
+                                    diff_filename=diff_cphp)
     assert result_cphp is True
     assert os.path.isfile(diff_cphp) is False
     # SNAP-Ed Report
-    report_filename_snap_ed = 'Extension Staff PEARS Entries ' + utils.previous_month(return_type='%Y-%m') + '.xlsx'
+    report_filename_snap_ed = staff_report.report_filename(agency='SNAP-Ed')
     diff_snap_ed = ACTUAL_OUTPUTS_DIR + 'staff_report_snap_ed_diff.xlsx'
     result_snap_ed = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename_snap_ed,
                                        xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_snap_ed,

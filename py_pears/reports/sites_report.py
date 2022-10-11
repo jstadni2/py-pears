@@ -3,6 +3,10 @@ import py_pears.utils as utils
 import smtplib
 
 
+def report_filename():
+    return 'PEARS Sites Report ' + utils.previous_month('%Y-%m') + '.xlsx'
+
+
 # Run the Sites Report
 # creds: dict of credentials loaded from credentials.json
 # sites_export: path to PEARS export of Sites
@@ -56,7 +60,7 @@ def main(creds,
 
     # Export the Sites Report as an Excel file
 
-    sites_report_filename = 'PEARS Sites Report ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    sites_report_filename = report_filename()
 
     sites_report_path = output_dir + sites_report_filename
 

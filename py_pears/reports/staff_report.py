@@ -3,6 +3,14 @@ from functools import reduce
 import py_pears.utils as utils
 
 
+def report_filename(agency='SNAP-Ed'):
+    prev_month_str = utils.previous_month(return_type='%Y-%m')
+    if agency == 'SNAP-Ed':
+        return 'Extension Staff PEARS Entries ' + prev_month_str + '.xlsx'
+    elif agency == 'CPHP':
+        return 'CPHP Staff PEARS Entries ' + prev_month_str + '.xlsx'
+
+
 # Timestamp for day the report is run
 ts = pd.to_datetime("today").date()
 # PeriodArray/Index object for report month
@@ -301,7 +309,7 @@ def main(creds,
     # Save extension report
 
     extension_report_dfs = {'Extension Staff PEARS Entries': extension_report}
-    extension_report_filename = 'Extension Staff PEARS Entries ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    extension_report_filename = report_filename(agency='SNAP-Ed')
     extension_report_file_path = output_dir + '/' + extension_report_filename
 
     save_staff_report(extension_report_dfs, extension_report_file_path, agency='Extension')
@@ -316,7 +324,7 @@ def main(creds,
     cphp_report = compile_report(cphp_staff_modules, agency='CPHP')
 
     cphp_report_dfs = {'CPHP Staff PEARS Entries': cphp_report}
-    cphp_report_filename = 'CPHP Staff PEARS Entries ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    cphp_report_filename = report_filename(agency='CPHP')
     cphp_report_file_path = output_dir + '/' + cphp_report_filename
 
     save_staff_report(cphp_report_dfs, cphp_report_file_path, agency='CPHP')
