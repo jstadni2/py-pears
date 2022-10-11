@@ -4,6 +4,20 @@ import smtplib
 import py_pears.utils as utils
 
 
+fq_df = utils.previous_fq(columns=['fq', 'survey_fq'])
+fq = fq_df['fq'].item()
+survey_fq = fq_df['survey_fq'].item()
+
+
+# report: 'corrections' or 'former staff'
+def report_filename(report='corrections'):
+    prev_month_str = utils.previous_month(return_type='%Y-%m')
+    if report == 'corrections':
+        return 'Quarterly Coalition Survey Entry ' + fq + '.xlsx'
+    elif report == 'former staff':
+        return 'Former Staff Coalition Survey Entry ' + fq + '.xlsx'
+
+
 # Run the Coalition Survey Cleaning report
 # creds: dict of credentials loaded from credentials.json
 # coalitions_export: path to PEARS export of Coalitions
@@ -42,13 +56,6 @@ def main(creds,
     coa_data = coa_data.loc[coa_data['program_area'].isin(['SNAP-Ed', 'Family Consumer Science'])]
     coa_data['coalition_id'] = coa_data['coalition_id'].astype(str)
 
-    # UPDATE: Implement a try-catch and/or util function
-    prev_month = utils.previous_month(return_type='%m')
-    fq_lookup = pd.DataFrame({'fq': ['Q1', 'Q2', 'Q3', 'Q4'], 'month': ['12', '03', '06', '09'],
-                              'survey_fq': ['Quarter 1 (October-December)', 'Quarter 2 (January-March)',
-                                            'Quarter 3 (April-June)', 'Quarter 4 (July-September)']})
-    fq = fq_lookup.loc[fq_lookup['month'] == prev_month, 'fq'].item()
-    survey_fq = fq_lookup.loc[fq_lookup['month'] == prev_month, 'survey_fq'].item()
     # Using manual filename convention
     coa_surveys = pd.read_excel(coalition_surveys_dir + "Coalition_Survey_" + fq + "_Export.xlsx",
                                 sheet_name='Response Data')

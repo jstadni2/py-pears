@@ -21,7 +21,7 @@ ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '.'))
 TEST_INPUTS_DIR = ROOT_DIR + '/test_inputs/'
 TEST_INPUTS_PEARS_DIR = TEST_INPUTS_DIR + '/pears/'
 TEST_INPUTS_PEARS_PREV_YEAR_DIR = TEST_INPUTS_PEARS_DIR + '/prev_year/'
-TEST_INPUTS_PEARS_COA_SURVEYS_DIR = TEST_INPUTS_PEARS_DIR + '/coalition_survey_exports/'
+TEST_COALITION_SURVEY_EXPORTS_DIR = TEST_INPUTS_PEARS_DIR + '/coalition_survey_exports/'
 
 # Set paths to external data inputs
 staff_list = TEST_INPUTS_DIR + 'FY23_INEP_Staff_List.xlsx'
@@ -210,3 +210,21 @@ def test_partnerships_entry():
                                        diff_filename=diff_snap_ed)
     assert result_snap_ed is True
     assert os.path.isfile(diff_snap_ed) is False
+
+
+def test_coalition_survey_cleaning():
+    coalition_survey_cleaning.main(creds=creds,
+                                   coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                                   coalition_surveys_dir=TEST_COALITION_SURVEY_EXPORTS_DIR,
+                                   staff_list=staff_list,
+                                   unit_counties=unit_counties,
+                                   update_notifications=update_notifications,
+                                   output_dir=ACTUAL_OUTPUTS_DIR)
+    report_filename = coalition_survey_cleaning.report_filename(report='corrections')
+    diff = ACTUAL_OUTPUTS_DIR + 'coalition_survey_cleaning_diff.xlsx'
+    result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename,
+                               xlsx2=EXPECTED_OUTPUTS_DIR + report_filename,
+                               diff_filename=diff)
+    assert result is True
+    assert os.path.isfile(diff) is False
+
