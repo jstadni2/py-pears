@@ -25,7 +25,7 @@ TEST_INPUTS_PEARS_PREV_YEAR_DIR = TEST_INPUTS_PEARS_DIR + '/prev_year/'
 TEST_INPUTS_PEARS_COA_SURVEYS_DIR = TEST_INPUTS_PEARS_DIR + '/coalition_survey_exports/'
 
 # Set paths to external data inputs
-staff_list = TEST_INPUTS_DIR + 'FY22_INEP_Staff_List.xlsx'
+staff_list = TEST_INPUTS_DIR + 'FY23_INEP_Staff_List.xlsx'
 names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
 unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
 update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
