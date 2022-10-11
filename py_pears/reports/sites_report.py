@@ -27,7 +27,7 @@ def main(creds,
 
     # Sites Report
 
-    prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1))
+    prev_month = utils.previous_month(return_type='')
     report_month_int = prev_month.month
     report_year_int = prev_month.year
 

@@ -929,7 +929,7 @@ def main(creds,
     corrections_sums = pd.merge(corrections_sums, update_notes, how='left', on=['Module', 'Update'])
 
     # Calculate the month for this report
-    prev_month = (ts - pd.DateOffset(months=1)).to_period('M')
+    prev_month = utils.previous_month()
 
     # Export the Corrections Report as an Excel file
 

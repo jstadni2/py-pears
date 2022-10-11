@@ -257,7 +257,7 @@ def main(creds,
                      new_parts.pop('program_activity_comments'))
 
     # Create utils function for prev_month()
-    prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1)).to_period('M')
+    prev_month = utils.previous_month()
 
     # SNAP-Ed Workbook
 
