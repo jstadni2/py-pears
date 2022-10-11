@@ -3,6 +3,14 @@ import numpy as np
 import py_pears.utils as utils
 
 
+def report_filename(agency='SNAP-Ed'):
+    prev_month_str = utils.previous_month(return_type='%Y-%m')
+    if agency == 'SNAP-Ed':
+        return 'SNAP-Ed Partnerships Data Entry ' + prev_month_str + '.xlsx'
+    elif agency == 'CPHP':
+        return 'CPHP Partnerships Data Entry ' + prev_month_str + '.xlsx'
+
+
 # Run the Partnerships Entry report
 # creds: dict of credentials loaded from credentials.json
 # users_export: path to PEARS export of Users
@@ -266,7 +274,7 @@ def main(creds,
 
     fcs_dfs = {'New Partnerships': snap_ed_new_parts, 'Copy Forward - Site ID Matches': snap_ed_c_parts_site_id}
 
-    fcs_filename = 'SNAP-Ed Partnerships Data Entry ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    fcs_filename = report_filename(agency='SNAP-Ed')
 
     fcs_file_path = output_dir + fcs_filename
 
@@ -279,7 +287,7 @@ def main(creds,
 
     cphp_dfs = {'New Partnerships': cphp_new_parts, 'Copy Forward - Site ID Matches': cphp_c_parts_site_id}
 
-    cphp_filename = 'CPHP Partnerships Data Entry ' + prev_month.strftime('%Y-%m') + '.xlsx'
+    cphp_filename = report_filename(agency='CPHP')
 
     cphp_file_path = output_dir + cphp_filename
 

@@ -181,3 +181,32 @@ def test_monthly_data_cleaning():
                                diff_filename=diff)
     assert result is True
     assert os.path.isfile(diff) is False
+
+
+def test_partnerships_entry():
+    partnerships_entry.main(creds=creds,
+                            users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",
+                            sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",
+                            program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                            indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                            partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                            staff_list=staff_list,
+                            unit_counties=unit_counties,
+                            prev_year_part_export=TEST_INPUTS_PEARS_PREV_YEAR_DIR + 'Partnership_Export.xlsx',
+                            output_dir=ACTUAL_OUTPUTS_DIR)
+    # CPHP Report
+    report_filename_cphp = partnerships_entry.report_filename(agency='CPHP')
+    diff_cphp = ACTUAL_OUTPUTS_DIR + 'partnerships_entry_cphp_diff.xlsx'
+    result_cphp = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename_cphp,
+                                    xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_cphp,
+                                    diff_filename=diff_cphp)
+    assert result_cphp is True
+    assert os.path.isfile(diff_cphp) is False
+    # SNAP-Ed Report
+    report_filename_snap_ed = partnerships_entry.report_filename(agency='SNAP-Ed')
+    diff_snap_ed = ACTUAL_OUTPUTS_DIR + 'partnerships_entry_snap_ed_diff.xlsx'
+    result_snap_ed = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename_snap_ed,
+                                       xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_snap_ed,
+                                       diff_filename=diff_snap_ed)
+    assert result_snap_ed is True
+    assert os.path.isfile(diff_snap_ed) is False
