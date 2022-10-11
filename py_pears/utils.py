@@ -121,6 +121,20 @@ def previous_month(return_type='datetime'):
         return prev_month.strftime('%Y-%m')
 
 
+# Return a DataFrame of datatypes associated with the previous fiscal quarter
+# columns: any of 'fq', 'fq_int', 'month', 'survey_fq'
+# UPDATE: Implement a try-catch?
+def previous_fq(columns=['fq_int']):
+    fq_lookup = pd.DataFrame({'fq': ['Q1', 'Q2', 'Q3', 'Q4'],
+                              'fq_int': [1, 2, 3, 4],
+                              'month': ['12', '03', '06', '09'],
+                              'survey_fq': ['Quarter 1 (October-December)', 'Quarter 2 (January-March)',
+                                            'Quarter 3 (April-June)', 'Quarter 4 (July-September)']})
+
+    prev_month = previous_month(return_type='%m')
+    return fq_lookup.loc[fq_lookup['month'] == prev_month, columns]
+
+
 # Select records from PEARS module export
 # df: dataframe of PEARS module records
 # record_name_field: field label for the record name
