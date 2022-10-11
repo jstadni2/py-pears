@@ -12,7 +12,6 @@ import py_pears.reports.monthly_data_cleaning as monthly_data_cleaning
 import py_pears.reports.quarterly_program_evaluation as quarterly_program_evaluation
 import py_pears.reports.partnerships_entry as partnerships_entry
 import py_pears.reports.coalition_survey_cleaning as coalition_survey_cleaning
-import py_pears.reports.partnerships_intervention_type as partnerships_intervention_type
 
 
 # Calculate the path to the root directory of this package
@@ -34,6 +33,14 @@ EXPECTED_OUTPUTS_DIR = ROOT_DIR + '/expected_outputs/'
 ACTUAL_OUTPUTS_DIR = ROOT_DIR + '/actual_outputs/'
 
 creds = utils.load_credentials()
+
+staff_list = TEST_INPUTS_DIR + 'FY23_INEP_Staff_List.xlsx'
+# Set following paths to external data inputs instead of test inputs
+names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
+unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
+update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
+
+prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1))
 
 
 # Compare Excel Workbook objects
@@ -112,14 +119,65 @@ def test_compare_workbooks_false():
 
 
 def test_sites_report():
-    diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
     sites_report.main(creds=creds,
                       sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",
                       users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",
                       output_dir=ACTUAL_OUTPUTS_DIR)
-    result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-                               diff_filename=ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx')
+    report_filename = 'PEARS Sites Report ' + utils.previous_month(return_type='%Y-%m') + '.xlsx'  # make function in each report?
+    diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
+    result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename,
+                               xlsx2=EXPECTED_OUTPUTS_DIR + report_filename,
+                               diff_filename=diff)
     assert result is True
     # Report output changed if diff exists
     assert os.path.isfile(diff) is False
+
+
+def test_staff_report():
+    staff_report.main(creds=creds,
+                      users_export=TEST_INPUTS_PEARS_DIR + "User_Export.xlsx",
+                      program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                      indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                      coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                      partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                      pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
+                      success_stories_export=TEST_INPUTS_PEARS_DIR + "Success_Story_Export.xlsx",
+                      staff_list=staff_list,
+                      output_dir=ACTUAL_OUTPUTS_DIR)
+    # CPHP Report
+    report_filename_cphp = 'CPHP Staff PEARS Entries ' + utils.previous_month(return_type='%Y-%m') + '.xlsx'
+    diff_cphp = ACTUAL_OUTPUTS_DIR + 'staff_report_cphp_diff.xlsx'
+    result_cphp = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename_cphp,
+                               xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_cphp,
+                               diff_filename=diff_cphp)
+    assert result_cphp is True
+    assert os.path.isfile(diff_cphp) is False
+    # SNAP-Ed Report
+    report_filename_snap_ed = 'Extension Staff PEARS Entries ' + utils.previous_month(return_type='%Y-%m') + '.xlsx'
+    diff_snap_ed = ACTUAL_OUTPUTS_DIR + 'staff_report_snap_ed_diff.xlsx'
+    result_snap_ed = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename_snap_ed,
+                                       xlsx2=EXPECTED_OUTPUTS_DIR + report_filename_snap_ed,
+                                       diff_filename=diff_snap_ed)
+    assert result_snap_ed is True
+    assert os.path.isfile(diff_snap_ed) is False
+
+
+# def test_monthly_data_cleaning():
+#     monthly_data_cleaning.main(creds=creds,
+#                                coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+#                                indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+#                                partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+#                                program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+#                                pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
+#                                staff_list=staff_list,
+#                                names_list=names_list,
+#                                unit_counties=unit_counties,
+#                                update_notifications=update_notifications,
+#                                output_dir=ACTUAL_OUTPUTS_DIR)
+#     diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
+#     result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
+#                                xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
+#                                diff_filename=diff)
+#     assert result is True
+#     # Report output changed if diff exists
+#     assert os.path.isfile(diff) is False

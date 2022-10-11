@@ -7,7 +7,6 @@ import py_pears.reports.monthly_data_cleaning as monthly_data_cleaning
 import py_pears.reports.quarterly_program_evaluation as quarterly_program_evaluation
 import py_pears.reports.partnerships_entry as partnerships_entry
 import py_pears.reports.coalition_survey_cleaning as coalition_survey_cleaning
-import py_pears.reports.partnerships_intervention_type as partnerships_intervention_type
 
 # Calculate the path to the root directory of this package
 ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
@@ -27,7 +26,6 @@ staff_list = TEST_INPUTS_DIR + 'FY23_INEP_Staff_List.xlsx'
 names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
 unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
 update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
-
 
 creds = utils.load_credentials()
 
