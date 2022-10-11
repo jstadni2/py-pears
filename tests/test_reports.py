@@ -162,22 +162,22 @@ def test_staff_report():
     assert os.path.isfile(diff_snap_ed) is False
 
 
-# def test_monthly_data_cleaning():
-#     monthly_data_cleaning.main(creds=creds,
-#                                coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
-#                                indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
-#                                partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
-#                                program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
-#                                pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
-#                                staff_list=staff_list,
-#                                names_list=names_list,
-#                                unit_counties=unit_counties,
-#                                update_notifications=update_notifications,
-#                                output_dir=ACTUAL_OUTPUTS_DIR)
-#     diff = ACTUAL_OUTPUTS_DIR + 'sites_report_diff.xlsx'
-#     result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-#                                xlsx2=EXPECTED_OUTPUTS_DIR + 'PEARS Sites Report 2022-09.xlsx',
-#                                diff_filename=diff)
-#     assert result is True
-#     # Report output changed if diff exists
-#     assert os.path.isfile(diff) is False
+def test_monthly_data_cleaning():
+    monthly_data_cleaning.main(creds=creds,
+                               coalitions_export=TEST_INPUTS_PEARS_DIR + "Coalition_Export.xlsx",
+                               indirect_activities_export=TEST_INPUTS_PEARS_DIR + "Indirect_Activity_Export.xlsx",
+                               partnerships_export=TEST_INPUTS_PEARS_DIR + "Partnership_Export.xlsx",
+                               program_activities_export=TEST_INPUTS_PEARS_DIR + "Program_Activities_Export.xlsx",
+                               pse_site_activities_export=TEST_INPUTS_PEARS_DIR + "PSE_Site_Activity_Export.xlsx",
+                               staff_list=staff_list,
+                               names_list=names_list,
+                               unit_counties=unit_counties,
+                               update_notifications=update_notifications,
+                               output_dir=ACTUAL_OUTPUTS_DIR)
+    report_filename = monthly_data_cleaning.report_filename(report='corrections')
+    diff = ACTUAL_OUTPUTS_DIR + 'monthly_data_cleaning_diff.xlsx'
+    result = compare_workbooks(xlsx1=ACTUAL_OUTPUTS_DIR + report_filename,
+                               xlsx2=EXPECTED_OUTPUTS_DIR + report_filename,
+                               diff_filename=diff)
+    assert result is True
+    assert os.path.isfile(diff) is False
