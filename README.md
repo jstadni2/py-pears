@@ -1,46 +1,121 @@
-# py-pears
+# py-pears: unofficial PEARS development kit
 
 [![Build Status](https://github.com/jstadni2/py-pears/workflows/test/badge.svg?branch=master&event=push)](https://github.com/jstadni2/py-pears/actions?query=workflow%3Atest)
 [![codecov](https://codecov.io/gh/jstadni2/py-pears/branch/master/graph/badge.svg)](https://codecov.io/gh/jstadni2/py-pears)
 [![Python Version](https://img.shields.io/pypi/pyversions/py-pears.svg)](https://pypi.org/project/py-pears/)
 [![wemake-python-styleguide](https://img.shields.io/badge/style-wemake-000000.svg)](https://github.com/wemake-services/wemake-python-styleguide)
 
-This is how python package should look like!
-
+`py-pears` was developed to consolidate [Illinois Extension's](https://extension.illinois.edu/) reporting and data 
+cleaning infrastructure for [PEARS](https://www.k-state.edu/oeie/pears/) into a single Python package. A brief summary 
+of each report is provided in the [Reports](#reports) section. 
 
 ## Features
 
-- Fully typed with annotations and checked with mypy, [PEP561 compatible](https://www.python.org/dev/peps/pep-0561/)
-- Add yours!
-
+- The [utils.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/utils.py) module compiles methods shared 
+across multiple scripts to streamline report development and maintenance.
+- [schedule.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/schedule.py) serves as the entry point for a 
+job scheduler. Scheduled dates for each report are compared to a timestamp before importing PEARS data and running the 
+report.
+- Several modules are provided to facilitate automated testing of PEARS reports. See [Testing](#testing) below for
+more information.
 
 ## Installation
 
+The recommended way to install `py-pears` is through git, which can be downloaded 
+[here](https://git-scm.com/downloads). Once downloaded, run the following command:
+
 ```bash
-pip install py-pears
+git clone https://github.com/jstadni2/py-pears
 ```
+
 ### Setup
 
-Example `credentials.json`:
+A JSON file of organizational settings is required to utilize `py-pears`. Create a file named `org_settings.json`
+in the [/py_pears](https://github.com/jstadni2/py-pears/tree/master/py_pears) directory. 
+
+Example `org_settings.json`:
 
 ```json
 {
+  "aws_profile": "your_profile_name",
+  "s3_organization": "org_prefix",
   "admin_username": "your_username@domain.com",
   "admin_password": "your_password",
-  "admin_send_from": "your_username@domain.com"
+  "admin_send_from": "your_username@domain.com",
+  "staff_list": "/path/to/Staff_List.xlsx",
+  "pears_prev_year": "/path/to/annual_pears_exports/2022/",
+  "coalition_survey_exports": "/path/to/coalition_survey_exports/2022/"
 }
 ```
 
-## Example
+This package's [.gitignore](https://github.com/jstadni2/py-pears/blob/master/.gitignore#L220) file will exclude
+`org_settings.json` from git commits. Follow instructions below for obtaining necessary credentials.
 
-Showcase how your project can be used:
+#### Amazon Web Services 
 
-```python
-from py_pears.example import some_function
+An AWS named profile will need to be created for accessing automated PEARS exports from the organization's 
+[AWS S3](https://aws.amazon.com/s3/) bucket. 
+- Contact [PEARS support](mailto:support@pears.io) to set up an AWS S3 bucket to store 
+automated PEARS exports.
+- Obtain the key, secret, and organization's S3 prefix from PEARS support.
+- Install [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
+- Use AWS CLI to [create a named profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) 
+for the PEARS S3 credentials using the following command:
 
-print(some_function(3, 4))
-# => 7
+```bash
+aws configure --profile your_profile_name
 ```
+
+- Set the value of `"aws_profile"` to the name of the profile in `org_settings.json`.
+- Set the value of `"s3_organization"` to the S3 prefix obtained from PEARS support.
+
+#### Email Credentials 
+Administrative credentials are required for email delivery of reports.
+- Set the `"admin_username"` and `"admin_password"` variables in `org_settings.json` to valid Office 365 credentials.
+- The `"admin_send_from"` variable can be optionally set to an address linked to `"admin_username"`. Otherwise, assign
+the same value to both variables.
+- The `send_mail()` function in [utils.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/utils.py#L332) is
+defined using Office 365 as the host. Change the host to the appropriate email service provider if necessary.
+
+#### External Data
+The following file/directory paths are required to run some reports in `py-pears`. 
+- `"staff_list"`: The path to a workbook that compiles organizational staff. 
+  - See [FY23_INEP_Staff_List.xlsx](https://github.com/jstadni2/py-pears/blob/master/tests/test_inputs/FY23_INEP_Staff_List.xlsx)
+  as an example.
+  - Reports dependent on `"staff_list"` may require additional alterations depending on the staff list format.
+  - If your organization actively maintains its staff list internally in PEARS, the 
+  [User_Export.xlsx](https://github.com/jstadni2/py-pears/blob/master/tests/test_inputs/pears/User_Export.xlsx) workbook 
+  could be used in lieu of external staff lists.
+- `"pears_prev_year"`: The path to a directory of the previous report year's PEARS exports for each module.
+  - This may not be necessary if your organization does not intent to use the 
+  [Partnerships Entry Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/partnerships_entry.py)
+- `"coalition_survey_exports"`: The path to a directory of PEARS Coalition Survey exports.
+  - This may not be necessary if your organization does not intent to use the 
+    [Coalition Survey Cleaning Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/coalition_survey_cleaning.py)
+
+## Reports
+
+### Monthly Data Cleaning
+
+### Staff Report
+
+### Quarterly Program Evaluation Report
+
+### Sites Report
+
+### Partnerships Entry Report
+
+### Coalition Survey Cleaning
+
+### Partnerships Intervention Type Report 
+
+## Testing
+
+### Generate Test Inputs
+
+### Generate Expected Outputs
+
+### Test Reports
 
 ## License
 
