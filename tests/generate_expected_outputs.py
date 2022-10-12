@@ -27,7 +27,7 @@ names_list = TEST_INPUTS_DIR + 'BABY_NAMES_IL.TXT'
 unit_counties = TEST_INPUTS_DIR + 'Illinois Extension Unit Counties.xlsx'
 update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
 
-creds = utils.load_credentials()
+creds = utils.load_org_settings()
 
 sites_report.main(creds=creds,
                   sites_export=TEST_INPUTS_PEARS_DIR + "Site_Export.xlsx",

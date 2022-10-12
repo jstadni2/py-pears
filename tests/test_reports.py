@@ -31,7 +31,7 @@ update_notifications = TEST_INPUTS_DIR + 'Update Notifications.xlsx'
 EXPECTED_OUTPUTS_DIR = ROOT_DIR + '/expected_outputs/'
 ACTUAL_OUTPUTS_DIR = ROOT_DIR + '/actual_outputs/'
 
-creds = utils.load_credentials()
+creds = utils.load_org_settings()
 
 prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1))
 
