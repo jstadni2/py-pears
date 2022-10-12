@@ -191,7 +191,7 @@ def save_staff_report(dfs, file_path, agency='Extension'):
 
 
 # Run the Staff Report
-# creds: dict of credentials loaded from credentials.json
+# creds: dict of credentials loaded from org_settings.json
 # users_export: path to PEARS export of Users
 # program_activities_export: path to PEARS export of Program Activities
 # indirect_activities_export: path to PEARS export of Indirect Activities

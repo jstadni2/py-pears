@@ -5,7 +5,7 @@ import py_pears.utils as utils
 # UPDATE Extraneous report, refactor into notification flag in Monthly Data Cleaning
 
 # Run the Partnerships Intervention Type report
-# creds: dict of credentials loaded from credentials.json
+# creds: dict of credentials loaded from org_settings.json
 # export_dir: directory where PEARS exports are downloaded to
 # output_dir: directory where report outputs are saved
 # staff_list: path to the staff list Excel workbook

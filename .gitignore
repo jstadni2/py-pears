@@ -217,4 +217,4 @@ fabric.properties
 .python-version
 
 # specific to py-pears
-py_pears/credentials.json
+py_pears/org_settings.json

@@ -12,7 +12,7 @@ def report_filename(agency='SNAP-Ed'):
 
 
 # Run the Partnerships Entry report
-# creds: dict of credentials loaded from credentials.json
+# creds: dict of credentials loaded from org_settings.json
 # users_export: path to PEARS export of Users
 # sites_export: path to PEARS export of Sites
 # program_activities_export: path to PEARS export of Program Activities

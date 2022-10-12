@@ -280,13 +280,13 @@ def first_row_to_cols(df):
     return out_df.drop(out_df.index[0])
 
 
-# load credentials.json file as a dict
-# credentials.json must be created in /py_pears
-def load_credentials():
-    creds_f = open(ROOT_DIR + '/credentials.json')
-    creds_data = json.load(creds_f)
-    creds_f.close()
-    return creds_data
+# load org_settings.json file as a dict
+# org_settings.json must be created in /py_pears
+def load_org_settings():
+    org_settings_f = open(ROOT_DIR + '/org_settings.json')
+    org_settings_data = json.load(org_settings_f)
+    org_settings_f.close()
+    return org_settings_data
 
 
 # Send an email with or without a xlsx attachment

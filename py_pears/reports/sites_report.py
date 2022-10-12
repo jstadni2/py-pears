@@ -8,7 +8,7 @@ def report_filename():
 
 
 # Run the Sites Report
-# creds: dict of credentials loaded from credentials.json
+# creds: dict of credentials loaded from org_settings.json
 # sites_export: path to PEARS export of Sites
 # users_export: path to PEARS export of Users
 # output_dir: directory where report outputs are saved

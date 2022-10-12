@@ -19,7 +19,7 @@ def report_filename(report='corrections'):
 
 
 # Run the Coalition Survey Cleaning report
-# creds: dict of credentials loaded from credentials.json
+# creds: dict of credentials loaded from org_settings.json
 # coalitions_export: path to PEARS export of Coalitions
 # coalition_surveys_dir: string for the directory where PEARS Coalition Survey exports are stored
 # staff_list: path to the staff list Excel workbook

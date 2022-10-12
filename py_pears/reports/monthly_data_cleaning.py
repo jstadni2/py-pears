@@ -124,7 +124,7 @@ def write_corrections_report(report_dict, file_path):
 
 
 # Run the Monthly Data Cleaning report
-# creds: dict of credentials loaded from credentials.json
+# creds: dict of credentials loaded from org_settings.json
 # coalitions_export: path to PEARS export of Coalitions
 # indirect_activities_export: path to PEARS export of Indirect Activities
 # partnerships_export: path to PEARS export of Partnerships
