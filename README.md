@@ -49,7 +49,7 @@ Example `org_settings.json`:
 ```
 
 This package's [.gitignore](https://github.com/jstadni2/py-pears/blob/master/.gitignore#L220) file will exclude
-`org_settings.json` from git commits. Follow instructions below for obtaining necessary credentials.
+`org_settings.json` from git commits. Follow the instructions below for obtaining necessary credentials.
 
 #### Amazon Web Services 
 
@@ -70,10 +70,10 @@ aws configure --profile your_profile_name
 - Set the value of `"s3_organization"` to the S3 prefix obtained from PEARS support.
 
 #### Email Credentials 
-Administrative credentials are required for email delivery of reports.
+Administrative credentials are required for email delivery of reports and PEARS user notifications.
 - Set the `"admin_username"` and `"admin_password"` variables in `org_settings.json` to valid Office 365 credentials.
-- The `"admin_send_from"` variable can be optionally set to an address linked to `"admin_username"`. Otherwise, assign
-the same value to both variables.
+- The `"admin_send_from"` variable can be optionally set to a different address linked to `"admin_username"`. Otherwise, 
+assign the same value to both variables.
 - The `send_mail()` function in [utils.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/utils.py#L332) is
 defined using Office 365 as the host. Change the host to the appropriate email service provider if necessary.
 
@@ -97,25 +97,73 @@ The following file/directory paths are required to run some reports in `py-pears
 
 ### Monthly Data Cleaning
 
+The [Monthly Data Cleaning](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/monthly_data_cleaning.py) 
+script flags records based on guidance provided to PEARS users by the Illinois 
+[SNAP-Ed](https://www.fns.usda.gov/snap/snap-ed) implementing agency. Users are notified via email how to update their 
+flagged records.
+
 ### Staff Report
+
+The [Staff Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/staff_report.py) summarizes the 
+PEARS activity of SNAP-Ed staff on a monthly basis. Separate reports are generated for each Illinois SNAP-Ed
+implementing agency, [Illinois Extension](https://inep.extension.illinois.edu/) and 
+[Chicago Partnership for Health Promotion \(CPHP\)](https://cphp.uic.edu/).
 
 ### Quarterly Program Evaluation Report
 
+The [Quarterly Program Evaluation Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/quarterly_program_evaluation.py) 
+generates metrics for Illinois Extension's quarterly SNAP-Ed evaluation report. Data from PEARS is used to calculate 
+evaluation metrics specified by the [SNAP-Ed Evaluation Framework](https://snapedtoolkit.org/framework/index/) and 
+[Illinois Department of Human Services \(IDHS\)](https://www.dhs.state.il.us/page.aspx).
+
 ### Sites Report
+
+The [Sites Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/sites_report.py) compiles the site 
+records created in PEARS by Illinois Extension staff on a monthly basis. In order to prevent site duplication, select 
+staff are authorized to manage requests for new site records. Other users are notified when they enter sites into PEARS 
+without permission.
 
 ### Partnerships Entry Report
 
+The [Partnerships Entry Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/partnerships_entry.py)
+generates Partnerships to enter for the current report year. Program Activity and Indirect Activity records are 
+cross-referenced with existing Partnerships to create new Partnership or copy-forward records from the previous report 
+year. Separate reports are generated for each Illinois SNAP-Ed implementing agency, Illinois Extension and CPHP.
+
 ### Coalition Survey Cleaning
+
+The [Coalition Survey Cleaning](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/coalition_survey_cleaning.py) 
+script flags Coalition records if a corresponding Coalition Survey is not submitted for the previous quarter. Users are 
+notified via email how to submit a survey for the applicable Coalitions.
 
 ### Partnerships Intervention Type Report 
 
 ## Testing
 
+Since the schema of PEARS export workbooks changes periodically, `py-pears` includes several modules to enable
+automated testing of report outputs.
+
 ### Generate Test Inputs
+
+The [Generate Test Inputs](https://github.com/jstadni2/py-pears/blob/master/tests/generate_test_inputs.py) script
+imports all PEARS exports from the current day's AWS S3 subdirectory. Identifying information for users, sites, and 
+partnering organizations is replaced with data generated from the [Faker](https://faker.readthedocs.io/en/master/)
+Python package. A copy of the `"staff_list"` Excel workbook specified in `org_settings.json` is populated with fake 
+users. Fields used for Illinois Extension's program evaluation are also replaced with random numeric values.
 
 ### Generate Expected Outputs
 
+The [Generate Expected Outputs](https://github.com/jstadni2/py-pears/blob/master/tests/generate_expected_outputs.py) 
+script runs reports with data produced by `generate_test_inputs.py`. The resulting Excel workbooks are stored for use in 
+automated test suites.
+
 ### Test Reports
+
+The [Test Reports](https://github.com/jstadni2/py-pears/blob/master/tests/test_reports.py) test suites compare report
+outputs with the Excel workbooks generated from `generate_expected_outputs.py` using the 
+[pytest](https://docs.pytest.org/en/7.1.x/) framework. Any report output alterations introduced during refactoring are
+detailed in diff Excel workbooks exported to
+[/tests/actual_outputs](https://github.com/jstadni2/py-pears/tree/master/tests/actual_outputs).
 
 ## License
 
