@@ -28,6 +28,9 @@ The recommended way to install `py-pears` is through git, which can be downloade
 git clone https://github.com/jstadni2/py-pears
 ```
 
+This package uses [Poetry](https://python-poetry.org/docs/) for dependency management, so follow the installation 
+instructions given in the previous link.
+
 ### Setup
 
 A JSON file of organizational settings is required to utilize `py-pears`. Create a file named `org_settings.json`
@@ -151,11 +154,23 @@ partnering organizations is replaced with data generated from the [Faker](https:
 Python package. A copy of the `"staff_list"` Excel workbook specified in `org_settings.json` is populated with fake 
 users. Fields used for Illinois Extension's program evaluation are also replaced with random numeric values.
 
+Execute the following command from the root directory of the package to run `generate_test_inputs.py`:
+
+```bash
+poetry run generate_test_inputs
+```
+
 ### Generate Expected Outputs
 
 The [Generate Expected Outputs](https://github.com/jstadni2/py-pears/blob/master/tests/generate_expected_outputs.py) 
 script runs reports with data produced by `generate_test_inputs.py`. The resulting Excel workbooks are stored for use in 
 automated test suites.
+
+Execute the following command to run `generate_expected_outputs.py`:
+
+```bash
+poetry run generate_expected_outputs
+```
 
 ### Test Reports
 
@@ -164,6 +179,12 @@ outputs with the Excel workbooks generated from `generate_expected_outputs.py` u
 [pytest](https://docs.pytest.org/en/7.1.x/) framework. Any report output alterations introduced during refactoring are
 detailed in diff Excel workbooks exported to
 [/tests/actual_outputs](https://github.com/jstadni2/py-pears/tree/master/tests/actual_outputs).
+
+Execute the following command to run `test_reports.py`:
+
+```bash
+poetry run pytest tests/test_reports.py
+```
 
 ## License
 
