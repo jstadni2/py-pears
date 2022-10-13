@@ -321,7 +321,7 @@ def clean_staff_list(test_staff_list, emails_dict, netids_dict, users,
 def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=TEST_INPUTS_PEARS_DIR,
          test_coalition_surveys_dir=TEST_COALITION_SURVEY_EXPORTS_DIR):
 
-    creds = utils.load_credentials()
+    creds = utils.load_org_settings()
 
     # Download all PEARS S3 objects for today
     utils.download_s3_exports(profile=creds['aws_profile'],

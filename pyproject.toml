@@ -59,3 +59,7 @@ pytest-randomly = "^3.12"
 
 [tool.poetry.extras]
 docs = ["sphinx", "sphinx-autodoc-typehints", "m2r2", "tomlkit"]
+
+[tool.poetry.scripts]
+generate_test_inputs = 'tests.generate_test_inputs:main'
+generate_expected_outputs = 'tests.generate_expected_outputs:main'
