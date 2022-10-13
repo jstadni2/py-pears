@@ -61,5 +61,6 @@ pytest-randomly = "^3.12"
 docs = ["sphinx", "sphinx-autodoc-typehints", "m2r2", "tomlkit"]
 
 [tool.poetry.scripts]
+schedule = 'py_pears.schedule:main'
 generate_test_inputs = 'tests.generate_test_inputs:main'
 generate_expected_outputs = 'tests.generate_expected_outputs:main'

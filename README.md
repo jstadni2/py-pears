@@ -6,16 +6,15 @@
 [![wemake-python-styleguide](https://img.shields.io/badge/style-wemake-000000.svg)](https://github.com/wemake-services/wemake-python-styleguide)
 
 `py-pears` was developed to consolidate [Illinois Extension's](https://extension.illinois.edu/) reporting and data 
-cleaning infrastructure for [PEARS](https://www.k-state.edu/oeie/pears/) into a single Python package. A brief summary 
-of each report is provided in the [Reports](#reports) section. 
+cleaning infrastructure for [PEARS](https://www.k-state.edu/oeie/pears/) into a single Python package. 
 
 ## Features
 
+- [schedule.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/schedule.py) serves as the entry point for a 
+job scheduler. Operation and recommendations are detailed in [Schedule](#schedule).
 - The [utils.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/utils.py) module compiles methods shared 
 across multiple scripts to streamline report development and maintenance.
-- [schedule.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/schedule.py) serves as the entry point for a 
-job scheduler. Scheduled dates for each report are compared to a timestamp before importing PEARS data and running the 
-report.
+- A brief summary of each report is provided in the [Reports](#reports) section. 
 - Several modules are provided to facilitate automated testing of PEARS reports. See [Testing](#testing) below for
 more information.
 
@@ -96,6 +95,19 @@ The following file/directory paths are required to run some reports in `py-pears
   - This may not be necessary if your organization does not intent to use the 
     [Coalition Survey Cleaning Report](https://github.com/jstadni2/py-pears/blob/master/py_pears/reports/coalition_survey_cleaning.py)
 
+## Schedule
+
+The run dates, input and output directories, and email recipients for each report are set in
+[schedule.py](https://github.com/jstadni2/py-pears/blob/master/py_pears/schedule.py). Scheduled dates are compared to a 
+timestamp before importing PEARS data from the AWS S3 and running the report. To run the schedule, execute the following
+system command within the package directory:
+
+```bash
+poetry run schedule
+```
+
+Trigger dates for your organization's job scheduler should mirror the run dates set in `schedule.py`.
+
 ## Reports
 
 ### Monthly Data Cleaning
@@ -154,7 +166,7 @@ partnering organizations is replaced with data generated from the [Faker](https:
 Python package. A copy of the `"staff_list"` Excel workbook specified in `org_settings.json` is populated with fake 
 users. Fields used for Illinois Extension's program evaluation are also replaced with random numeric values.
 
-Execute the following command from the root directory of the package to run `generate_test_inputs.py`:
+Execute the following command to run `generate_test_inputs.py`:
 
 ```bash
 poetry run generate_test_inputs
@@ -180,10 +192,16 @@ outputs with the Excel workbooks generated from `generate_expected_outputs.py` u
 detailed in diff Excel workbooks exported to
 [/tests/actual_outputs](https://github.com/jstadni2/py-pears/tree/master/tests/actual_outputs).
 
-Execute the following command to run `test_reports.py`:
+Execute the following command from the root directory of the package to run `test_reports.py`:
 
 ```bash
 poetry run pytest tests/test_reports.py
+```
+
+Alternatively, you can run all test suites simply via:
+
+```bash
+poetry run pytest
 ```
 
 ## License
