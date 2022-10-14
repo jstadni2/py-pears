@@ -522,8 +522,23 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
                                  collaborators
                              ])
 
+    action_plan_outcomes = Module('Action_Plan_Outcomes', [])
+
+    action_plans = Module('Action_Plans', [])
+
+    social_marketing_campaigns = Module('Social_Marketing_Campaigns',
+                                        [
+                                            Submodule('Social Marketing Campaigns',
+                                                      user_fields=user_fields,
+                                                      text_fields=['campaign_name', 'copied_from', 'details']),
+                                            Submodule('Campaign Reach',
+                                                      numeric_fields=['market_size_total', 'impressions_total',
+                                                                      'reached_total']),
+                                            collaborators
+                                        ])
+
     import_modules = [program_activities, indirect_activities, partnerships, coalitions, pse_site_activities,
-                      success_stories]
+                      success_stories, action_plan_outcomes, action_plans, social_marketing_campaigns]
 
     clean_module_exports(in_path=export_dir,
                          out_path=test_pears_dir,
@@ -563,7 +578,7 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
 
     clean_module_exports(creds['pears_prev_year'],
                          test_pears_dir + 'prev_year/',
-                         import_modules,
+                         [partnerships],
                          emails_dict,
                          names_dict,
                          cleaned_sites.rename(columns={'address': 'site_address',
