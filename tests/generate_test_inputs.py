@@ -522,6 +522,8 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
                                  collaborators
                              ])
 
+    quarterly_effort = Module('Quarterly_Effort', [])
+
     action_plan_outcomes = Module('Action_Plan_Outcomes', [])
 
     action_plans = Module('Action_Plans', [])
@@ -538,7 +540,7 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
                                         ])
 
     import_modules = [program_activities, indirect_activities, partnerships, coalitions, pse_site_activities,
-                      success_stories, action_plan_outcomes, action_plans, social_marketing_campaigns]
+                      success_stories, quarterly_effort, action_plan_outcomes, action_plans, social_marketing_campaigns]
 
     clean_module_exports(in_path=export_dir,
                          out_path=test_pears_dir,
