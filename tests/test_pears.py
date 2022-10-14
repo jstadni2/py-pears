@@ -3,16 +3,18 @@ import pytest
 import pandas as pd
 import boto3
 from botocore.exceptions import ClientError
-# import os
-# import openpyxl
-# import pandas as pd
+import os
+import openpyxl
 # import numpy as np
 
 import py_pears.utils as utils
 
+# Test PEARS AWS S3
+
 creds = utils.load_org_settings()
 profile = creds['aws_profile']
 org = creds['s3_organization']
+my_bucket = 'exports.pears.oeie.org'
 date = pd.to_datetime("today").strftime("%Y/%m/%d")
 
 
@@ -27,7 +29,6 @@ def test_pears_bucket():
     try:
         session = boto3.Session(profile_name=profile)
         conn = session.client('s3')
-        my_bucket = 'exports.pears.oeie.org'
 
         conn.list_objects_v2(
             Bucket=my_bucket,
@@ -44,9 +45,7 @@ def test_pears_bucket():
 
 def test_pears_s3_objects():
     session = boto3.Session(profile_name=profile)
-
     conn = session.client('s3')
-    my_bucket = 'exports.pears.oeie.org'
 
     response = conn.list_objects_v2(
         Bucket=my_bucket,
@@ -74,3 +73,40 @@ def test_pears_s3_objects():
                         'User_Export.xlsx']
 
     assert object_filenames == expected_exports
+
+
+# Test PEARS Export workbook schema
+
+# Calculate the path to the root directory of this package
+ROOT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
+
+ACTUAL_EXPORTS_DIR = ROOT_DIR + '/py_pears/pears_exports/'
+EXPECTED_EXPORTS_DIR = ROOT_DIR + '/tests/test_inputs/pears/'
+
+utils.download_s3_exports(profile=profile,
+                          org=org,
+                          dst=ACTUAL_EXPORTS_DIR)
+
+
+def compare_sheets(xlsx1, xlsx2):
+    wb1 = openpyxl.load_workbook(xlsx1)
+    wb2 = openpyxl.load_workbook(xlsx2)
+    return wb1.sheetnames == wb2.sheetnames
+
+
+def test_export_sheets():
+    exports = os.listdir(ACTUAL_EXPORTS_DIR)
+    for export in exports:
+        if export in ['.gitignore', 'User_Export.xlsx']:
+            continue
+        assert compare_sheets(ACTUAL_EXPORTS_DIR + export, EXPECTED_EXPORTS_DIR + export)
+
+
+# def compare_code_books():
+#     pass
+#
+#
+# def compare_sheet_fields():
+#     pass
+
+

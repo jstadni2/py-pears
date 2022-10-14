@@ -38,13 +38,12 @@ prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1))
 
 # Compare Excel Workbook objects
 def compare_workbooks(xlsx1, xlsx2, diff_filename):
-    wb1 = openpyxl.load_workbook(xlsx1)  # use openpyxl?
+    wb1 = openpyxl.load_workbook(xlsx1)
     wb2 = openpyxl.load_workbook(xlsx2)
     # Return False if sheet names aren't equal
     sheets1 = wb1.sheetnames
     sheets2 = wb2.sheetnames
     if not sheets1 == sheets2:
-        # print('')
         return False
 
     diff_dfs = {}
