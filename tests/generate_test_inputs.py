@@ -213,6 +213,8 @@ def clean_module_exports(in_path, out_path, import_modules, emails_dict, names_d
         # Read module's sheet
         for submod in module.submodules:
             data = pd.read_excel(dst, sheet_name=submod.name)
+            if data.empty:
+                continue
 
             for field in submod.user_fields:
                 if field == 'reported_by_email':

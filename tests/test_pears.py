@@ -5,9 +5,9 @@ import boto3
 from botocore.exceptions import ClientError
 import os
 import openpyxl
-# import numpy as np
 
 import py_pears.utils as utils
+
 
 # Test PEARS AWS S3
 
@@ -87,23 +87,42 @@ utils.download_s3_exports(profile=profile,
                           org=org,
                           dst=ACTUAL_EXPORTS_DIR)
 
+exports = os.listdir(ACTUAL_EXPORTS_DIR)
+
 
 def compare_sheets(xlsx1, xlsx2):
-    wb1 = openpyxl.load_workbook(xlsx1)
-    wb2 = openpyxl.load_workbook(xlsx2)
-    return wb1.sheetnames == wb2.sheetnames
+    sheet_names1 = openpyxl.load_workbook(xlsx1).sheetnames
+    sheet_names2 = openpyxl.load_workbook(xlsx2).sheetnames
+    return sheet_names1 == sheet_names2
 
 
 def test_export_sheets():
-    exports = os.listdir(ACTUAL_EXPORTS_DIR)
     for export in exports:
-        if export in ['.gitignore', 'User_Export.xlsx']:
+        if export in ['.gitignore', 'User_Export.xlsx']:  # Remove User Export once all test input sheets are cleaned
             continue
         assert compare_sheets(ACTUAL_EXPORTS_DIR + export, EXPECTED_EXPORTS_DIR + export)
 
 
-# def compare_code_books():
-#     pass
+def compare_code_books(xlsx1, xlsx2):
+    wb1 = openpyxl.load_workbook(xlsx1)
+    wb2 = openpyxl.load_workbook(xlsx2)
+
+    df1 = pd.DataFrame(wb1['Codebook'].values)
+    df2 = pd.DataFrame(wb2['Codebook'].values)
+
+    # Remove Exported by timestamp
+    df1.iloc[4, 0] = None
+    df2.iloc[4, 0] = None
+
+    return df1.equals(df2)
+
+
+def test_code_books():
+    for export in exports:
+        if export in ['.gitignore']:
+            continue
+        assert compare_code_books(ACTUAL_EXPORTS_DIR + export, EXPECTED_EXPORTS_DIR + export)
+
 #
 #
 # def compare_sheet_fields():
