@@ -123,9 +123,28 @@ def test_code_books():
             continue
         assert compare_code_books(ACTUAL_EXPORTS_DIR + export, EXPECTED_EXPORTS_DIR + export)
 
-#
-#
-# def compare_sheet_fields():
-#     pass
+
+def compare_sheet_fields(xlsx1, xlsx2):
+    wb1 = openpyxl.load_workbook(xlsx1)
+    wb2 = openpyxl.load_workbook(xlsx2)
+
+    for sheet in wb1.sheetnames:
+        if sheet == 'Codebook':
+            continue
+
+        df1 = utils.first_row_to_cols(pd.DataFrame(wb1[sheet].values))
+        df2 = utils.first_row_to_cols(pd.DataFrame(wb2[sheet].values))
+        fields1 = df1.columns.tolist()
+        fields2 = df2.columns.tolist()
+
+        if fields1 != fields2:
+            return False
+
+    return True
 
 
+def test_sheet_fields():
+    for export in exports:
+        if export in ['.gitignore', 'User_Export.xlsx']:  # Remove User Export once all test input sheets are cleaned
+            continue
+        assert compare_sheet_fields(ACTUAL_EXPORTS_DIR + export, EXPECTED_EXPORTS_DIR + export)

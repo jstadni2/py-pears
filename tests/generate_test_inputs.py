@@ -427,8 +427,6 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
                                                                                'site_name': 'parent_site_name'}),
                                   'parent_site_id')
 
-    cleaned_sites['comment'] = ''
-
     # Demographics tab, 'site_name'
 
     cleaned_demo = pd.read_excel(sites_src, sheet_name='Demographics')
@@ -485,7 +483,7 @@ def main(export_dir=EXPORT_DIR, test_inputs_dir=TEST_INPUTS_DIR, test_pears_dir=
                         [
                             Submodule('Coalition Data',
                                       user_fields=user_fields,
-                                      text_fields=['coalition_name', 'event_title', 'comment', 'accomplishments',
+                                      text_fields=['coalition_name', 'comment', 'accomplishments',
                                                    'copied_from'],
                                       numeric_fields=['number_of_members']),
                             Submodule('Members', site_fields=site_fields, text_fields=['name', 'role_and_resources']),
