@@ -156,15 +156,36 @@ notified via email how to submit a survey for the applicable Coalitions.
 ## Testing
 
 Since the schema of PEARS export workbooks changes periodically, `py-pears` includes several modules to enable
-automated testing of report outputs.
+automated testing of exports and report outputs.
+
+### Test PEARS
+
+The [Test PEARS](https://github.com/jstadni2/py-pears/blob/master/tests/test_pears.py) test suites determine whether 
+expected PEARS exports are present on the AWS S3. The schema of the current export workbooks are also compared to those found in
+[/tests/test_inputs](https://github.com/jstadni2/py-pears/tree/master/tests/test_inputs).
+
+Execute the following command from the root directory of the package to run `test_reports.py`:
+
+```bash
+poetry run pytest tests/test_pears.py
+```
+
+Alternatively, you can run all test suites simply via:
+
+```bash
+poetry run pytest
+```
 
 ### Generate Test Inputs
 
 The [Generate Test Inputs](https://github.com/jstadni2/py-pears/blob/master/tests/generate_test_inputs.py) script
-imports all PEARS exports from the current day's AWS S3 subdirectory. Identifying information for users, sites, and 
+downloads PEARS exports from the current day's AWS S3 subdirectory to 
+[/tests/test_inputs](https://github.com/jstadni2/py-pears/tree/master/tests/test_inputs). Identifying information for users, sites, and 
 partnering organizations is replaced with data generated from the [Faker](https://faker.readthedocs.io/en/master/)
 Python package. A copy of the `"staff_list"` Excel workbook specified in `org_settings.json` is populated with fake 
-users. Fields used for Illinois Extension's program evaluation are also replaced with random numeric values.
+users. Fields used for Illinois Extension's program evaluation are also replaced with random numeric values. Once
+schema changes in PEARS export works are discovered and report scripts are updated accordingly, rerun 
+`generate_test_inputs.py` and the subsequent modules and test suites.
 
 Execute the following command to run `generate_test_inputs.py`:
 
@@ -175,8 +196,9 @@ poetry run generate_test_inputs
 ### Generate Expected Outputs
 
 The [Generate Expected Outputs](https://github.com/jstadni2/py-pears/blob/master/tests/generate_expected_outputs.py) 
-script runs reports with data produced by `generate_test_inputs.py`. The resulting Excel workbooks are stored for use in 
-automated test suites.
+script runs reports with data produced by `generate_test_inputs.py`. The resulting Excel workbooks are stored in 
+[/tests/actual_outputs](https://github.com/jstadni2/py-pears/tree/master/tests/actual_outputs) for use in the
+[Test Reports](#test-reports) test suites.
 
 Execute the following command to run `generate_expected_outputs.py`:
 
@@ -198,11 +220,9 @@ Execute the following command from the root directory of the package to run `tes
 poetry run pytest tests/test_reports.py
 ```
 
-Alternatively, you can run all test suites simply via:
 
-```bash
-poetry run pytest
-```
+
+
 
 ## License
 
