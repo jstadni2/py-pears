@@ -182,6 +182,15 @@ def main(pears_export_dir=PEARS_EXPORT_DIR,
                                             output_dir=outputs_dir,
                                             staff_list=staff_list)
 
+    # Annual Program Evaluation Report
+    if compare_date(month=10, day=18):
+        quarterly_program_evaluation.main(coalitions_export=creds['pears_prev_year'] + "Coalition_Export.xlsx",
+                                          indirect_activities_export=creds['pears_prev_year'] + "Indirect_Activity_Export.xlsx",
+                                          partnerships_export=creds['pears_prev_year'] + "Partnership_Export.xlsx",
+                                          program_activities_export=creds['pears_prev_year'] + "Program_Activities_Export.xlsx",
+                                          pse_site_activities_export=creds['pears_prev_year'] + "PSE_Site_Activity_Export.xlsx",
+                                          output_dir=outputs_dir)
+
 
 if __name__ == '__main__':
     main()
