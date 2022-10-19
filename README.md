@@ -161,7 +161,8 @@ automated testing of exports and report outputs.
 ### Test PEARS
 
 The [Test PEARS](https://github.com/jstadni2/py-pears/blob/master/tests/test_pears.py) test suites determine whether 
-expected PEARS exports are present on the AWS S3. The schema of the current export workbooks are also compared to those found in
+expected PEARS exports are present on the AWS S3 using the [pytest](https://docs.pytest.org/en/7.1.x/) framework. The 
+schema of the current export workbooks are also compared to those found in
 [/tests/test_inputs](https://github.com/jstadni2/py-pears/tree/master/tests/test_inputs).
 
 Execute the following command from the root directory of the package to run `test_reports.py`:
@@ -170,7 +171,7 @@ Execute the following command from the root directory of the package to run `tes
 poetry run pytest tests/test_pears.py
 ```
 
-Alternatively, you can run all test suites simply via:
+Alternatively, you can simply run all test suites via:
 
 ```bash
 poetry run pytest
@@ -209,8 +210,7 @@ poetry run generate_expected_outputs
 ### Test Reports
 
 The [Test Reports](https://github.com/jstadni2/py-pears/blob/master/tests/test_reports.py) test suites compare report
-outputs with the Excel workbooks generated from `generate_expected_outputs.py` using the 
-[pytest](https://docs.pytest.org/en/7.1.x/) framework. Any report output alterations introduced during refactoring are
+outputs with the Excel workbooks generated from `generate_expected_outputs.py`. Any report output alterations introduced during refactoring are
 detailed in diff Excel workbooks exported to
 [/tests/actual_outputs](https://github.com/jstadni2/py-pears/tree/master/tests/actual_outputs).
 
@@ -219,10 +219,6 @@ Execute the following command from the root directory of the package to run `tes
 ```bash
 poetry run pytest tests/test_reports.py
 ```
-
-
-
-
 
 ## License
 
