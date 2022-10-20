@@ -229,6 +229,8 @@ def clean_module_exports(in_path, out_path, import_modules, emails_dict, names_d
                 data = randomize_text(submod.name, data, data.columns[0], field)
 
             for field in submod.numeric_fields:
+                if data[field].isnull().all():
+                    continue
                 data = randomize_metric(data, field)
 
             # Overwrite each workbook sheet with replaced data
