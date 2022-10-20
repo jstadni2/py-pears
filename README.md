@@ -28,7 +28,11 @@ git clone https://github.com/jstadni2/py-pears
 ```
 
 This package uses [Poetry](https://python-poetry.org/docs/) for dependency management, so follow the installation 
-instructions given in the previous link.
+instructions given in the previous link. Once installed, run the following command in the root directory of the package:
+
+```bash
+poetry install
+```
 
 ### Setup
 
