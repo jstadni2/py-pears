@@ -13,6 +13,7 @@ def report_filename():
 # users_export: path to PEARS export of Users
 # output_dir: directory where report outputs are saved
 # send_emails: boolean for sending emails associated with this report (default: False)
+# site_creators: list of names of PEARS users who are authorized to enter site records
 # notification_cc: list-like string of email addresses to cc on unauthorized site creation notifications
 # report_cc: list-like string of email addresses to cc on the report email
 # report_recipients: list-like string of email addresses for recipients of the report email
@@ -21,6 +22,7 @@ def main(creds,
          users_export,
          output_dir,
          send_emails=False,
+         site_creators=(),
          notification_cc='',
          report_cc='',
          report_recipients=''):
@@ -103,9 +105,7 @@ def main(creds,
 
         # Email Unauthorized Site Creators
 
-        # List of PEARS users authorized to create sites
         # HOW SHOULD OTHER ORGS DEFINE THIS?
-        site_creators = ['names', 'of', 'PEARS', 'users']
         # Email domains of the agency are used to filter sites created by agency users
         agency_domains = ['illinois.edu', 'uic.edu']
 
