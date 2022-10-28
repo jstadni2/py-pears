@@ -35,6 +35,8 @@ creds = utils.load_org_settings()
 
 prev_month = (pd.to_datetime("today") - pd.DateOffset(months=1))
 
+utils.empty_directory(directory=ACTUAL_OUTPUTS_DIR[:-1])
+
 
 # Compare Excel Workbook objects
 def compare_workbooks(xlsx1, xlsx2, diff_filename):
